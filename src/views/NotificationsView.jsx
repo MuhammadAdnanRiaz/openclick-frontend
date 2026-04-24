@@ -1,79 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '../components/primitives.jsx';
 import { useApp, A } from '../store/AppContext.jsx';
-
-const SEED_NOTIFICATIONS = [
-  {
-    id: 1, group: 'Today', read: false,
-    icon: 'git-merge', color: 'var(--s-merged-500)',
-    title: 'ORB-425 merged to main',
-    desc: 'Terraform state migration was successfully merged by Alex Kim',
-    when: '2h ago', taskId: 'ORB-425',
-  },
-  {
-    id: 2, group: 'Today', read: false,
-    icon: 'clock', color: '#fb923c',
-    title: 'Due soon: ORB-419',
-    desc: 'Scheduler core implementation is due Apr 28 — 4 days remaining',
-    when: '3h ago', taskId: 'ORB-419',
-  },
-  {
-    id: 3, group: 'Today', read: false,
-    icon: 'user-plus', color: 'var(--accent)',
-    title: 'Izzy Park joined the workspace',
-    desc: 'Izzy Park accepted the invitation and joined Orbital',
-    when: '5h ago', taskId: null,
-  },
-  {
-    id: 4, group: 'Today', read: true,
-    icon: 'git-pull-request', color: 'var(--s-review-500)',
-    title: 'PR #481 ready for review',
-    desc: 'Realtime event bus — Priya Kapoor opened a pull request',
-    when: '6h ago', taskId: 'ORB-412',
-  },
-  {
-    id: 5, group: 'Yesterday', read: true,
-    icon: 'triangle-alert', color: 'var(--s-blocked-500)',
-    title: 'ORB-399 marked as blocked',
-    desc: 'gRPC gateway upgrade is blocked on an external dependency',
-    when: 'Yesterday, 2pm', taskId: 'ORB-399',
-  },
-  {
-    id: 6, group: 'Yesterday', read: true,
-    icon: 'check-circle-2', color: 'var(--s-done-500)',
-    title: 'Sprint goals updated',
-    desc: 'Jonas Becker updated Sprint 24 goals and acceptance criteria',
-    when: 'Yesterday, 11am', taskId: null,
-  },
-  {
-    id: 7, group: 'This week', read: true,
-    icon: 'zap', color: '#eab308',
-    title: 'CI pipeline improved by 40%',
-    desc: 'Cache optimization reduced build times across all workflows',
-    when: '2 days ago', taskId: null,
-  },
-  {
-    id: 8, group: 'This week', read: true,
-    icon: 'refresh-cw', color: 'var(--fg-muted)',
-    title: 'ORB-407 moved to Review',
-    desc: 'Plugin SDK v2 design is ready for review — assigned to Dev Patel',
-    when: '3 days ago', taskId: 'ORB-407',
-  },
-];
-
-const GROUPS = ['Today', 'Yesterday', 'This week'];
+import * as notifApi from '../api/notifications.js';
 
 export function NotificationsView({ onClose }) {
   const { dispatch } = useApp();
-  const [items, setItems] = useState(SEED_NOTIFICATIONS);
+  const [items, setItems]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  useEffect(() => {
+    notifApi.list()
+      .then(data => { setItems(data.notifications ?? []); setError(null); })
+      .catch(err  => setError(err.message || 'Failed to load notifications'))
+      .finally(() => setLoading(false));
+  }, []);
+
   const unreadCount = items.filter(i => !i.read).length;
 
-  function markAllRead() { setItems(its => its.map(i => ({ ...i, read: true }))); }
-  function dismiss(id) { setItems(its => its.filter(i => i.id !== id)); }
+  function markAllRead() {
+    setItems(its => its.map(i => ({ ...i, read: true })));
+    notifApi.markAllRead().catch(console.error);
+  }
+
+  function dismiss(id) {
+    setItems(its => its.filter(i => i.id !== id));
+    notifApi.dismiss(id).catch(console.error);
+  }
+
+  function clearGroup(group) {
+    const toClear = items.filter(i => i.group === group).map(i => i.id);
+    setItems(its => its.filter(i => i.group !== group));
+    toClear.forEach(id => notifApi.dismiss(id).catch(console.error));
+  }
+
+  function clearAll() {
+    setItems([]);
+    notifApi.clearAll().catch(console.error);
+  }
+
   function openTask(taskId) {
     if (!taskId) return;
     dispatch({ type: A.SET_UI, payload: { openTaskId: taskId, sidePanel: null } });
   }
+
+  const groupKeys = [...new Set(items.map(i => i.group))];
 
   return (
     <>
@@ -112,13 +83,20 @@ export function NotificationsView({ onClose }) {
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {items.length === 0 ? (
+          {loading ? (
+            <NotifLoadingState />
+          ) : error ? (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Icon name="wifi-off" size={32} style={{ color: 'var(--fg-subtle)', marginBottom: 12 }} />
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-muted)' }}>{error}</div>
+            </div>
+          ) : items.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <Icon name="bell-off" size={36} style={{ color: 'var(--fg-subtle)', marginBottom: 12 }} />
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-14)', color: 'var(--fg-muted)' }}>No notifications</div>
             </div>
           ) : (
-            GROUPS.map(group => {
+            groupKeys.map(group => {
               const groupItems = items.filter(i => i.group === group);
               if (!groupItems.length) return null;
               return (
@@ -128,7 +106,7 @@ export function NotificationsView({ onClose }) {
                     <button
                       className="oc-btn oc-btn--ghost"
                       style={{ fontSize: 10, height: 20, padding: '0 6px', color: 'var(--fg-subtle)' }}
-                      onClick={() => setItems(its => its.filter(i => i.group !== group))}
+                      onClick={() => clearGroup(group)}
                     >
                       Clear
                     </button>
@@ -154,7 +132,7 @@ export function NotificationsView({ onClose }) {
             <button
               className="oc-btn oc-btn--ghost"
               style={{ width: '100%', justifyContent: 'center', color: 'var(--fg-muted)', fontSize: 12 }}
-              onClick={() => setItems([])}
+              onClick={clearAll}
             >
               <Icon name="trash-2" size={12} /> Clear all notifications
             </button>
@@ -181,14 +159,13 @@ function NotifItem({ item, isLast, onDismiss, onOpen }) {
       }}
       onClick={onOpen}
     >
-      {/* Unread indicator */}
       <div style={{ position: 'relative', paddingTop: 2 }}>
         <div style={{
           width: 32, height: 32, borderRadius: 'var(--r-md)', flexShrink: 0,
-          background: item.color + '22',
+          background: (item.color || 'var(--accent)') + '22',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Icon name={item.icon} size={15} style={{ color: item.color }} />
+          <Icon name={item.icon || 'bell'} size={15} style={{ color: item.color || 'var(--accent)' }} />
         </div>
         {!item.read && (
           <span style={{ position: 'absolute', top: 0, right: -2, width: 7, height: 7, borderRadius: 999, background: 'var(--accent)', border: '2px solid var(--bg)' }} />
@@ -223,6 +200,23 @@ function NotifItem({ item, isLast, onDismiss, onOpen }) {
           <Icon name="x" size={12} />
         </button>
       )}
+    </div>
+  );
+}
+
+function NotifLoadingState() {
+  return (
+    <div style={{ padding: '12px 0' }}>
+      {[1, 2, 3].map(i => (
+        <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 'var(--r-md)', background: 'var(--bg-card)', flexShrink: 0 }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ height: 13, borderRadius: 'var(--r-sm)', background: 'var(--bg-card)', width: '60%' }} />
+            <div style={{ height: 11, borderRadius: 'var(--r-sm)', background: 'var(--bg-card)', width: '80%' }} />
+            <div style={{ height: 10, borderRadius: 'var(--r-sm)', background: 'var(--bg-card)', width: '30%' }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

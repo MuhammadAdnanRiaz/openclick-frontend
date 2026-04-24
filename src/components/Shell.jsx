@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon, Avatar, AvatarStack } from './primitives.jsx';
-import { WORKSPACE, PROJECT, VIEWS, STATUSES } from '../data.js';
+import { PROJECT, VIEWS } from '../data.js';
 import { useApp, A } from '../store/AppContext.jsx';
+import * as spacesApi from '../api/spaces.js';
+import * as workspaceApi from '../api/workspace.js';
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function WsMenuItem({ icon, label, onClick }) {
@@ -22,6 +24,10 @@ export function Sidebar({ collapsed, width, onLogout }) {
   const { dispatch, state } = useApp();
   const sidePanel = state.ui.sidePanel;
   const w = collapsed ? 56 : width;
+  const user = state.user;
+  const workspace = state.workspace;
+  const spaces = state.spaces;
+  const members = state.members;
 
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const wsMenuRef = useRef(null);
@@ -35,10 +41,43 @@ export function Sidebar({ collapsed, width, onLogout }) {
   const [newSpaceName, setNewSpaceName] = useState('');
   const [newSpaceIcon, setNewSpaceIcon] = useState('layers');
   const [newSpaceColor, setNewSpaceColor] = useState('#6366f1');
+  const [creatingSpace, setCreatingSpace] = useState(false);
 
   const [createWsOpen, setCreateWsOpen] = useState(false);
   const [newWsName, setNewWsName] = useState('');
   const [newWsUrl, setNewWsUrl] = useState('');
+  const [creatingWs, setCreatingWs] = useState(false);
+
+  async function handleCreateSpace() {
+    if (!newSpaceName.trim() || !state.workspaceId) return;
+    setCreatingSpace(true);
+    try {
+      const space = await spacesApi.create(state.workspaceId, {
+        name: newSpaceName.trim(),
+        icon: newSpaceIcon,
+        color: newSpaceColor,
+      });
+      dispatch({ type: A.SPACE_ADD, payload: space });
+      setAddSpaceOpen(false);
+    } catch (err) {
+      console.error('create space failed:', err);
+    } finally {
+      setCreatingSpace(false);
+    }
+  }
+
+  async function handleCreateWorkspace() {
+    if (!newWsName.trim()) return;
+    setCreatingWs(true);
+    try {
+      await workspaceApi.create({ name: newWsName.trim(), url: newWsUrl.trim() });
+      setCreateWsOpen(false);
+    } catch (err) {
+      console.error('create workspace failed:', err);
+    } finally {
+      setCreatingWs(false);
+    }
+  }
   return (
     <aside style={{
       width: w, flexShrink: 0,
@@ -52,8 +91,8 @@ export function Sidebar({ collapsed, width, onLogout }) {
           {!collapsed && (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                <div className="t-h3" style={{ lineHeight: 1.1 }}>{WORKSPACE.name}</div>
-                <div className="t-micro">Team · {WORKSPACE.members.length} members</div>
+                <div className="t-h3" style={{ lineHeight: 1.1 }}>{workspace?.name ?? '…'}</div>
+                <div className="t-micro">Team · {members.length} member{members.length !== 1 ? 's' : ''}</div>
               </div>
               <button className="oc-btn oc-btn--ghost oc-btn--icon" title="Workspace menu" onClick={() => setWsMenuOpen(o => !o)}>
                 <Icon name="chevrons-up-down" size={14} />
@@ -69,26 +108,23 @@ export function Sidebar({ collapsed, width, onLogout }) {
             padding: 6, animation: 'oc-scale-in 140ms var(--ease-out)',
           }}>
             <div className="t-label" style={{ padding: '4px 8px 6px', fontSize: 10 }}>Workspaces</div>
-            {[{ name: 'Orbital', members: 10, active: true }, { name: 'Personal', members: 1, active: false }].map(ws => (
-              <button key={ws.name} onClick={() => setWsMenuOpen(false)} style={{
+            {workspace && (
+              <button onClick={() => setWsMenuOpen(false)} style={{
                 display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                 padding: '7px 8px', border: 'none', borderRadius: 'var(--r-sm)',
-                background: 'transparent', cursor: ws.active ? 'default' : 'pointer',
+                background: 'transparent', cursor: 'default',
                 fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left',
-              }}
-              onMouseEnter={e => { if (!ws.active) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <span style={{ width: 22, height: 22, borderRadius: 6, background: ws.active ? 'var(--accent)' : 'var(--bg-card)', border: '1px solid var(--border)', color: ws.active ? '#fff' : 'var(--fg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                  {ws.name[0]}
+              }}>
+                <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--accent)', border: '1px solid var(--border)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                  {workspace.name[0]}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, lineHeight: 1.2 }}>{ws.name}</div>
-                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{ws.members} member{ws.members !== 1 ? 's' : ''}</div>
+                  <div style={{ fontWeight: 500, lineHeight: 1.2 }}>{workspace.name}</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{members.length} member{members.length !== 1 ? 's' : ''}</div>
                 </div>
-                {ws.active && <Icon name="check" size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+                <Icon name="check" size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
               </button>
-            ))}
+            )}
             <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
             <WsMenuItem icon="plus-circle" label="Create workspace" onClick={() => { setWsMenuOpen(false); setNewWsName(''); setNewWsUrl(''); setCreateWsOpen(true); }} />
             <WsMenuItem icon="settings" label="Workspace settings" onClick={() => { setWsMenuOpen(false); dispatch({ type: A.SET_UI, payload: { settingsOpen: true, settingsSection: 'workspace' } }); }} />
@@ -121,8 +157,11 @@ export function Sidebar({ collapsed, width, onLogout }) {
             </button>
           </div>
           <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'auto' }}>
-            {WORKSPACE.spaces.map((sp, i) => (
-              <SpaceTree key={sp.id} space={sp} expanded={i === 0} />
+            {spaces.length === 0 && (
+              <div style={{ padding: '8px 6px', fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--fg-subtle)' }}>No spaces yet</div>
+            )}
+            {spaces.map((sp, i) => (
+              <SpaceTree key={sp.id} space={sp} expanded={i === 0} workspaceId={state.workspaceId} />
             ))}
           </div>
         </>
@@ -132,10 +171,10 @@ export function Sidebar({ collapsed, width, onLogout }) {
         {userMenuOpen && !collapsed && (
           <div style={{ position: 'absolute', bottom: '100%', left: 8, right: 8, zIndex: 300, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', padding: 6, animation: 'oc-scale-in 140ms var(--ease-out)', marginBottom: 4 }}>
             <div style={{ padding: '8px 10px 6px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', marginBottom: 4 }}>
-              <Avatar name="Maya Chen" size={28} />
+              <Avatar name={user?.name ?? '?'} size={28} />
               <div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 600, color: 'var(--fg)' }}>Maya Chen</div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--fg-subtle)' }}>maya@orbital.dev</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 600, color: 'var(--fg)' }}>{user?.name ?? '—'}</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--fg-subtle)' }}>{user?.email ?? ''}</div>
               </div>
             </div>
             <WsMenuItem icon="user" label="Profile settings" onClick={() => { setUserMenuOpen(false); dispatch({ type: A.SET_UI, payload: { settingsOpen: true, settingsSection: 'profile' } }); }} />
@@ -155,12 +194,12 @@ export function Sidebar({ collapsed, width, onLogout }) {
           onMouseEnter={e => { if (!collapsed) e.currentTarget.style.background = 'var(--bg-hover)'; }}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
-          <Avatar name="Maya Chen" size={24} />
+          <Avatar name={user?.name ?? '?'} size={24} />
           {!collapsed && (
             <>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="t-small" style={{ color: 'var(--fg)', fontWeight: 500 }}>Maya Chen</div>
-                <div className="t-micro" style={{ fontSize: 10 }}>maya@orbital.dev</div>
+                <div className="t-small" style={{ color: 'var(--fg)', fontWeight: 500 }}>{user?.name ?? '—'}</div>
+                <div className="t-micro" style={{ fontSize: 10 }}>{user?.email ?? ''}</div>
               </div>
               <Icon name="more-horizontal" size={14} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
             </>
@@ -207,8 +246,8 @@ export function Sidebar({ collapsed, width, onLogout }) {
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="oc-btn oc-btn--ghost" onClick={() => setCreateWsOpen(false)}>Cancel</button>
-                <button className="oc-btn oc-btn--primary" disabled={!newWsName.trim()} onClick={() => setCreateWsOpen(false)}>
-                  <Icon name="building-2" size={13} /> Create workspace
+                <button className="oc-btn oc-btn--primary" disabled={!newWsName.trim() || creatingWs} onClick={handleCreateWorkspace}>
+                  <Icon name="building-2" size={13} /> {creatingWs ? 'Creating…' : 'Create workspace'}
                 </button>
               </div>
             </div>
@@ -259,8 +298,8 @@ export function Sidebar({ collapsed, width, onLogout }) {
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="oc-btn oc-btn--ghost" onClick={() => setAddSpaceOpen(false)}>Cancel</button>
-                <button className="oc-btn oc-btn--primary" disabled={!newSpaceName.trim()} onClick={() => setAddSpaceOpen(false)}>
-                  Create space
+                <button className="oc-btn oc-btn--primary" disabled={!newSpaceName.trim() || creatingSpace} onClick={handleCreateSpace}>
+                  {creatingSpace ? 'Creating…' : 'Create space'}
                 </button>
               </div>
             </div>
@@ -302,14 +341,7 @@ function SideItem({ icon, label, kbd, badge, active, collapsed, pad = 8, onClick
   );
 }
 
-const SEED_PROJECTS = {
-  eng:    ['Runtime · v0.8', 'Dashboard UI', 'API platform', 'DX & tooling'],
-  design: ['Design system', 'Marketing site refresh'],
-  ops:    [],
-  growth: [],
-};
-
-function SpaceTree({ space, expanded }) {
+function SpaceTree({ space, expanded, workspaceId }) {
   const [open, setOpen] = useState(expanded);
   const [hover, setHover] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -318,14 +350,11 @@ function SpaceTree({ space, expanded }) {
   const addMenuRef = useRef(null);
   useClickOutside(addMenuRef, () => setAddMenuOpen(false));
 
-  const [activeProject, setActiveProject] = useState('Runtime · v0.8');
+  const [activeProject, setActiveProject] = useState(null);
+  const [projects, setProjects] = useState(space.projects ?? []);
   const [pages, setPages] = useState([]);
   const [addingPage, setAddingPage] = useState(false);
   const [newPageName, setNewPageName] = useState('');
-
-  function handleProjectClick(label) {
-    if (label === 'Runtime · v0.8') setActiveProject(label);
-  }
 
   function confirmAddPage() {
     const name = newPageName.trim();
@@ -334,16 +363,20 @@ function SpaceTree({ space, expanded }) {
     setAddingPage(false);
   }
 
-  const [extraProjects, setExtraProjects] = useState([]);
-  function confirmAddProject() {
+  async function confirmAddProject() {
     const name = newProjectName.trim();
-    if (name) setExtraProjects(ps => [...ps, { id: Date.now(), name }]);
     setNewProjectName('');
     setAddingProject(false);
+    if (!name) return;
+    const optimistic = { id: `__tmp_${Date.now()}`, name };
+    setProjects(ps => [...ps, optimistic]);
+    try {
+      const created = await spacesApi.createProject(workspaceId, space.id, name);
+      setProjects(ps => ps.map(p => p.id === optimistic.id ? created : p));
+    } catch {
+      setProjects(ps => ps.filter(p => p.id !== optimistic.id));
+    }
   }
-
-  const seedProjects = SEED_PROJECTS[space.id] ?? [];
-  const projects = [...seedProjects, ...extraProjects.map(p => p.name)];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -396,7 +429,7 @@ function SpaceTree({ space, expanded }) {
       {open && (
         <div style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
           {projects.map(p => (
-            <SideSubItem key={p} label={p} icon="hash" active={activeProject === p} onClick={() => handleProjectClick(p)} />
+            <SideSubItem key={p.id ?? p} label={p.name ?? p} icon="hash" active={activeProject === (p.id ?? p)} onClick={() => setActiveProject(p.id ?? p)} />
           ))}
           {pages.map(pg => (
             <SideSubItem key={pg.id} label={pg.name} icon="file-text" active={false} onClick={() => {}} />
@@ -479,7 +512,9 @@ function SideSubItem({ label, active, onClick }) {
 
 // ─── Topbar ───────────────────────────────────────────────────────────────────
 export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme }) {
-  const { dispatch } = useApp();
+  const { dispatch, state } = useApp();
+  const spaces = state.spaces;
+  const members = state.members;
   return (
     <header style={{
       height: 48, flexShrink: 0, background: 'var(--bg)',
@@ -491,8 +526,8 @@ export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme })
       </button>
       <nav style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 'var(--fs-13)', color: 'var(--fg-muted)', minWidth: 0, flex: 1 }}>
         <BreadcrumbItem
-          label="Engineering"
-          items={WORKSPACE.spaces.map(sp => ({ label: sp.name, icon: sp.icon, color: sp.color, active: sp.name === 'Engineering' }))}
+          label={spaces[0]?.name ?? 'Space'}
+          items={spaces.map((sp, i) => ({ label: sp.name, icon: sp.icon ?? 'layers', color: sp.color ?? 'var(--accent)', active: i === 0 }))}
           renderItem={(it, close) => (
             <button key={it.label} onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
@@ -580,7 +615,7 @@ export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme })
           <span style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: 'var(--s-blocked-500)' }} />
         </button>
         <div style={{ width: 1, height: 20, background: 'var(--border-subtle)', margin: '0 4px' }} />
-        <AvatarStack names={['Maya Chen','Dev Patel','Rae Wong','Jonas Becker']} max={3} size={22} />
+        <AvatarStack names={members.slice(0, 4).map(m => m.name)} max={3} size={22} />
         <button
           className="oc-btn oc-btn--primary"
           style={{ marginLeft: 6 }}
@@ -595,7 +630,7 @@ export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme })
 
 // ─── Project header ───────────────────────────────────────────────────────────
 export function ProjectHeader({ view, onViewChange }) {
-  const { state, dispatch, visibleTasks } = useApp();
+  const { state, dispatch, visibleTasks, memberNames } = useApp();
   const { filters, sort } = state;
 
   const totalDone = visibleTasks.filter(t => t.status === 'merged' || t.status === 'done').length;
@@ -671,7 +706,7 @@ export function ProjectHeader({ view, onViewChange }) {
                   ))}
                 </PopoverSection>
                 <PopoverSection label="Assignee">
-                  {WORKSPACE.members.map(m => (
+                  {memberNames.map(m => (
                     <CheckItem
                       key={m} label={m}
                       checked={filters.assignee.includes(m)}

@@ -1,85 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon, Avatar } from '../components/primitives.jsx';
 import { useApp, A } from '../store/AppContext.jsx';
-
-const SEED_ITEMS = [
-  {
-    id: 1, tab: 'mentions', type: 'mention', unread: true,
-    author: 'Dev Patel', when: '12m ago',
-    message: 'mentioned you in a comment on',
-    taskId: 'ORB-419', taskTitle: 'Scheduler core implementation',
-    body: '@Maya can you take a look at the cron expression parser? I think there might be an edge case with DST transitions.',
-  },
-  {
-    id: 2, tab: 'assigned', type: 'assigned', unread: true,
-    author: 'Rae Wong', when: '1h ago',
-    message: 'assigned you to',
-    taskId: 'ORB-440', taskTitle: 'Onboarding flow redesign',
-  },
-  {
-    id: 3, tab: 'mentions', type: 'mention', unread: true,
-    author: 'Jonas Becker', when: '2h ago',
-    message: 'mentioned you in',
-    taskId: 'ORB-412', taskTitle: 'Realtime event bus',
-    body: '@Maya LGTM on the reconnect logic — I think this is ready for your review.',
-  },
-  {
-    id: 4, tab: 'updates', type: 'pr', unread: true,
-    author: 'Priya Kapoor', when: '3h ago',
-    message: 'opened a PR on',
-    taskId: 'ORB-418', taskTitle: 'Token refresh edge case',
-    body: 'PR #483: Fix token refresh race condition on concurrent requests',
-  },
-  {
-    id: 5, tab: 'updates', type: 'status', unread: false,
-    author: 'Alex Kim', when: 'Yesterday',
-    message: 'moved to Merged',
-    taskId: 'ORB-425', taskTitle: 'Terraform state migration',
-    body: 'Status changed: In progress → Merged',
-  },
-  {
-    id: 6, tab: 'updates', type: 'comment', unread: false,
-    author: 'Sam Rivera', when: 'Yesterday',
-    message: 'commented on',
-    taskId: 'ORB-407', taskTitle: 'Plugin SDK v2 design',
-    body: 'Added the revised architecture diagram to the description. Let me know if the plugin lifecycle makes sense.',
-  },
-  {
-    id: 7, tab: 'assigned', type: 'assigned', unread: false,
-    author: 'Noor Hassan', when: '2 days ago',
-    message: 'assigned you to',
-    taskId: 'ORB-434', taskTitle: 'Latency regression in v0.7.8',
-  },
-  {
-    id: 8, tab: 'mentions', type: 'mention', unread: false,
-    author: 'Theo Lin', when: '3 days ago',
-    message: 'mentioned you in',
-    taskId: 'ORB-428', taskTitle: 'CI flakiness on arm64',
-    body: '@Maya do we have any metrics on failure rate per test suite? Trying to prioritize the fix.',
-  },
-];
+import * as inboxApi from '../api/inbox.js';
 
 const TABS = ['All', 'Mentions', 'Assigned', 'Updates'];
-const TYPE_ICON = { mention: 'at-sign', assigned: 'user-plus', pr: 'git-pull-request', status: 'refresh-cw', comment: 'message-circle' };
-const TYPE_COLOR = { mention: 'var(--accent)', assigned: 'var(--s-done-500)', pr: 'var(--s-review-500)', status: 'var(--fg-muted)', comment: 'var(--fg-muted)' };
+const TYPE_ICON  = { mention: 'at-sign', assigned: 'user-plus', pr: 'git-pull-request', status: 'refresh-cw', comment: 'message-circle', updates: 'bell' };
+const TYPE_COLOR = { mention: 'var(--accent)', assigned: 'var(--s-done-500)', pr: 'var(--s-review-500)', status: 'var(--fg-muted)', comment: 'var(--fg-muted)', updates: 'var(--fg-muted)' };
 
 export function InboxView({ onClose }) {
   const { dispatch } = useApp();
-  const [tab, setTab] = useState('All');
-  const [items, setItems] = useState(SEED_ITEMS);
+  const [tab, setTab]     = useState('All');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filtered = items.filter(it => {
-    if (tab === 'All') return true;
-    return it.tab === tab.toLowerCase();
-  });
+  function apiTab(t) {
+    const map = { All: 'all', Mentions: 'mentions', Assigned: 'assigned', Updates: 'updates' };
+    return map[t] ?? 'all';
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    inboxApi.list({ tab: apiTab(tab) })
+      .then(data => { setItems(data.items ?? []); setError(null); })
+      .catch(err  => setError(err.message || 'Failed to load inbox'))
+      .finally(() => setLoading(false));
+  }, [tab]);
+
   const unreadCount = items.filter(i => i.unread).length;
 
   function markRead(id) {
     setItems(its => its.map(i => i.id === id ? { ...i, unread: false } : i));
+    inboxApi.markRead(id).catch(console.error);
   }
+
   function markAllRead() {
     setItems(its => its.map(i => ({ ...i, unread: false })));
+    inboxApi.markAllRead().catch(console.error);
   }
+
   function openTask(taskId) {
     dispatch({ type: A.SET_UI, payload: { openTaskId: taskId, sidePanel: null } });
   }
@@ -124,7 +83,7 @@ export function InboxView({ onClose }) {
         {/* Tabs */}
         <div style={{ flexShrink: 0, display: 'flex', padding: '0 12px', borderBottom: '1px solid var(--border-subtle)' }}>
           {TABS.map(t => {
-            const count = t === 'All' ? items.filter(i => i.unread).length : items.filter(i => i.tab === t.toLowerCase() && i.unread).length;
+            const count = items.filter(i => i.unread && (t === 'All' || i.type === t.toLowerCase() || i.tab === t.toLowerCase())).length;
             const active = tab === t;
             return (
               <button
@@ -153,17 +112,24 @@ export function InboxView({ onClose }) {
 
         {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <InboxLoadingState />
+          ) : error ? (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Icon name="wifi-off" size={32} style={{ color: 'var(--fg-subtle)', marginBottom: 12 }} />
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-muted)' }}>{error}</div>
+            </div>
+          ) : items.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <Icon name="inbox" size={36} style={{ color: 'var(--fg-subtle)', marginBottom: 12 }} />
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-14)', color: 'var(--fg-muted)', marginBottom: 4 }}>All caught up</div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}>No {tab !== 'All' ? tab.toLowerCase() : ''} items here</div>
             </div>
-          ) : filtered.map((item, i) => (
+          ) : items.map((item, i) => (
             <InboxItem
               key={item.id}
               item={item}
-              isLast={i === filtered.length - 1}
+              isLast={i === items.length - 1}
               onRead={() => markRead(item.id)}
               onOpenTask={() => openTask(item.taskId)}
             />
@@ -190,20 +156,18 @@ function InboxItem({ item, isLast, onRead, onOpenTask }) {
       }}
       onClick={() => { onRead(); onOpenTask(); }}
     >
-      {/* Unread dot */}
       {item.unread && (
         <span style={{ position: 'absolute', top: 18, left: 6, width: 6, height: 6, borderRadius: 999, background: 'var(--accent)', flexShrink: 0 }} />
       )}
 
-      {/* Avatar + type icon */}
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <Avatar name={item.author} size={32} />
         <span style={{
           position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 999,
-          background: TYPE_COLOR[item.type], border: '2px solid var(--bg)',
+          background: TYPE_COLOR[item.type] ?? 'var(--fg-muted)', border: '2px solid var(--bg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Icon name={TYPE_ICON[item.type]} size={8} style={{ color: '#fff' }} />
+          <Icon name={TYPE_ICON[item.type] ?? 'bell'} size={8} style={{ color: '#fff' }} />
         </span>
       </div>
 
@@ -211,12 +175,14 @@ function InboxItem({ item, isLast, onRead, onOpenTask }) {
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', lineHeight: 1.4, marginBottom: 4 }}>
           <strong style={{ fontWeight: 600 }}>{item.author}</strong>{' '}
           <span style={{ color: 'var(--fg-muted)' }}>{item.message}</span>{' '}
-          <button
-            onClick={e => { e.stopPropagation(); onRead(); onOpenTask(); }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--accent)', fontWeight: 500 }}
-          >
-            {item.taskTitle}
-          </button>
+          {item.taskTitle && (
+            <button
+              onClick={e => { e.stopPropagation(); onRead(); onOpenTask(); }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--accent)', fontWeight: 500 }}
+            >
+              {item.taskTitle}
+            </button>
+          )}
         </div>
         {item.body && (
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.5, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -225,12 +191,15 @@ function InboxItem({ item, isLast, onRead, onOpenTask }) {
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>{item.when}</span>
-          <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>·</span>
-          <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>{item.taskId}</span>
+          {item.taskId && (
+            <>
+              <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>·</span>
+              <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>{item.taskId}</span>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Mark read button on hover */}
       {hover && item.unread && (
         <button
           className="oc-btn oc-btn--ghost oc-btn--icon"
@@ -241,6 +210,22 @@ function InboxItem({ item, isLast, onRead, onOpenTask }) {
           <Icon name="check" size={13} />
         </button>
       )}
+    </div>
+  );
+}
+
+function InboxLoadingState() {
+  return (
+    <div style={{ padding: '8px 0' }}>
+      {[1, 2, 3].map(i => (
+        <div key={i} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-card)', flexShrink: 0 }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ height: 13, borderRadius: 'var(--r-sm)', background: 'var(--bg-card)', width: '65%' }} />
+            <div style={{ height: 11, borderRadius: 'var(--r-sm)', background: 'var(--bg-card)', width: '45%' }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

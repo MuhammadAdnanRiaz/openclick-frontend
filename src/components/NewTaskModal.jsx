@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp, A } from '../store/AppContext.jsx';
 import { Icon, Avatar } from './primitives.jsx';
-import { STATUSES, WORKSPACE } from '../data.js';
+import { STATUSES } from '../data.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const PRIORITY_COLORS = { urgent: 'var(--p-urgent)', high: 'var(--p-high)', normal: 'var(--p-normal)', low: 'var(--p-low)' };
 
 export function NewTaskModal({ initialStatus = 'open', onClose }) {
-  const { dispatch } = useApp();
+  const { dispatch, memberNames } = useApp();
   const titleRef = useRef(null);
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState(initialStatus);
@@ -140,7 +140,7 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
           {/* Assignees */}
           <FieldLabel label="Assignees">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {WORKSPACE.members.map(name => {
+              {memberNames.map(name => {
                 const selected = assignees.includes(name);
                 return (
                   <button

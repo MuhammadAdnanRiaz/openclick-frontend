@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp, A } from '../store/AppContext.jsx';
 import { Icon, Avatar, AvatarStack, StatusChip, Priority, PRPill } from '../components/primitives.jsx';
-import { STATUSES, WORKSPACE } from '../data.js';
+import { STATUSES } from '../data.js';
 
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -182,7 +182,7 @@ function AssigneePicker({ assignees, onChange }) {
       </button>
       {open && (
         <div style={{ ...pickerStyle, minWidth: 200 }}>
-          {WORKSPACE.members.map(name => {
+          {memberNames.map(name => {
             const selected = assignees.includes(name);
             return (
               <button key={name} onClick={() => toggle(name)} style={pickerItemStyle(selected)}>
@@ -255,7 +255,7 @@ function ActivityEvent({ icon, text, when, color }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TaskDetail({ task, onClose, fullPage }) {
-  const { dispatch } = useApp();
+  const { dispatch, memberNames } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedBranch, setCopiedBranch] = useState(false);

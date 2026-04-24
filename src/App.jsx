@@ -16,7 +16,7 @@ import { ActivityView } from './views/ActivityView.jsx';
 import { NewTaskModal } from './components/NewTaskModal.jsx';
 import { FilterBar } from './components/FilterBar.jsx';
 import { Icon } from './components/primitives.jsx';
-import { TASKS } from './data.js';
+import { getStoredAuth, clearAuth, setUnauthorizedHandler } from './api/index.js';
 
 // ─── Tweaks panel (theme / density / sidebar — these are still local since ─────
 // they're design-canvas controls, not app state)
@@ -244,7 +244,7 @@ function Segmented({ value, onChange, options }) {
 
 // ─── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [isAuthed, setIsAuthed] = useState(false);
+  const [authData, setAuthData] = useState(() => getStoredAuth());
 
   // Apply theme tokens before auth screen renders
   useEffect(() => {
@@ -252,13 +252,28 @@ export default function App() {
     document.documentElement.setAttribute('data-density', 'comfortable');
   }, []);
 
-  if (!isAuthed) {
-    return <AuthView onAuth={() => setIsAuthed(true)} />;
+  function handleAuth(data) {
+    // data = { user, workspace, access_token, refresh_token } — already stored by api/auth.js
+    setAuthData({ user: data.user, workspaceId: data.workspace?.id ?? null });
+  }
+
+  function handleLogout() {
+    clearAuth();
+    setAuthData(null);
+  }
+
+  // Wire 401 handler so expired sessions auto-logout
+  useEffect(() => {
+    setUnauthorizedHandler(handleLogout);
+  }, []);
+
+  if (!authData) {
+    return <AuthView onAuth={handleAuth} />;
   }
 
   return (
-    <AppProvider>
-      <AppInner onLogout={() => setIsAuthed(false)} />
+    <AppProvider authData={authData}>
+      <AppInner onLogout={handleLogout} />
     </AppProvider>
   );
 }

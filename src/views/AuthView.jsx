@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '../components/primitives.jsx';
+import * as authApi from '../api/auth.js';
 
 // ─── Responsive + spinner animation ──────────────────────────────────────────
 const GLOBAL_STYLES = `
@@ -364,7 +365,8 @@ function BrandPanel() {
 function LoginForm({ onAuth, onForgot, onSignup }) {
   const email    = useField(V.email);
   const password = useField(V.password);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [apiError, setApiError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -372,8 +374,15 @@ function LoginForm({ onAuth, onForgot, onSignup }) {
     const b = password.validate();
     if (!a || !b) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    onAuth();
+    setApiError('');
+    try {
+      const data = await authApi.login({ email: email.value.trim(), password: password.value });
+      onAuth(data);
+    } catch (err) {
+      setApiError(err.message || 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -419,6 +428,11 @@ function LoginForm({ onAuth, onForgot, onSignup }) {
           </button>
         </div>
 
+        {apiError && (
+          <div role="alert" style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-13)', color: 'var(--s-blocked-500)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="alert-circle" size={13} /> {apiError}
+          </div>
+        )}
         <button
           type="submit" disabled={loading}
           className="oc-btn oc-btn--primary"
@@ -442,7 +456,8 @@ function SignupForm({ onAuth, onLogin }) {
   const name     = useField(V.name);
   const email    = useField(V.email);
   const password = useField(V.password);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [apiError, setApiError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -451,8 +466,19 @@ function SignupForm({ onAuth, onLogin }) {
     const c = password.validate();
     if (!a || !b || !c) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1400));
-    onAuth();
+    setApiError('');
+    try {
+      const data = await authApi.signup({
+        name: name.value.trim(),
+        email: email.value.trim(),
+        password: password.value,
+      });
+      onAuth(data);
+    } catch (err) {
+      setApiError(err.message || 'Sign up failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -499,6 +525,11 @@ function SignupForm({ onAuth, onLogin }) {
           <a href="#" style={{ color: 'var(--accent-text)' }}>Privacy Policy</a>.
         </p>
 
+        {apiError && (
+          <div role="alert" style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-13)', color: 'var(--s-blocked-500)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="alert-circle" size={13} /> {apiError}
+          </div>
+        )}
         <button
           type="submit" disabled={loading}
           className="oc-btn oc-btn--primary"
@@ -520,14 +551,22 @@ function SignupForm({ onAuth, onLogin }) {
 
 function ForgotForm({ onSent, onLogin }) {
   const email = useField(V.email);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [apiError, setApiError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!email.validate()) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    onSent(email.value.trim());
+    setApiError('');
+    try {
+      await authApi.forgotPassword({ email: email.value.trim() });
+      onSent(email.value.trim());
+    } catch (err) {
+      setApiError(err.message || 'Failed to send reset link. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -567,6 +606,11 @@ function ForgotForm({ onSent, onLogin }) {
           autoComplete="email" placeholder="you@company.com"
           value={email.value} onChange={email.onChange} onBlur={email.onBlur} error={email.error}
         />
+        {apiError && (
+          <div role="alert" style={{ padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-13)', color: 'var(--s-blocked-500)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="alert-circle" size={13} /> {apiError}
+          </div>
+        )}
         <button
           type="submit" disabled={loading}
           className="oc-btn oc-btn--primary"

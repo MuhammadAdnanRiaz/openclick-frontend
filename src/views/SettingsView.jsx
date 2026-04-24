@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Icon, Avatar } from '../components/primitives.jsx';
 import { useApp, A } from '../store/AppContext.jsx';
-import { WORKSPACE } from '../data.js';
+import * as usersApi        from '../api/users.js';
+import * as membersApi      from '../api/members.js';
+import * as workspaceApi    from '../api/workspace.js';
+import * as integrationsApi from '../api/integrations.js';
+import * as billingApi      from '../api/billing.js';
 
 // ─── Click-outside hook ───────────────────────────────────────────────────────
 function useClickOutside(ref, cb) {
@@ -175,16 +179,40 @@ function ColorSwatch({ value, onChange }) {
 
 // ─── Profile section ──────────────────────────────────────────────────────────
 function ProfileSection() {
-  const [name, setName] = useState('Maya Chen');
-  const [email, setEmail] = useState('maya@orbital.dev');
-  const [title, setTitle] = useState('Senior Engineer');
-  const [tz, setTz] = useState('America/Los_Angeles');
-  const [avatarColor, setAvatarColor] = useState('#6366f1');
-  const [saved, setSaved] = useState(false);
+  const { state } = useApp();
+  const [name,        setName]        = useState(state.user?.name  ?? '');
+  const [email,       setEmail]       = useState(state.user?.email ?? '');
+  const [title,       setTitle]       = useState('');
+  const [tz,          setTz]          = useState('America/Los_Angeles');
+  const [avatarColor, setAvatarColor] = useState(state.user?.avatarColor ?? '#6366f1');
+  const [saved,       setSaved]       = useState(false);
+  const [saving,      setSaving]      = useState(false);
 
-  function save() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // Hydrate full profile from API
+  useEffect(() => {
+    usersApi.getProfile().then(p => {
+      setName(p.name ?? '');
+      setEmail(p.email ?? '');
+      setTitle(p.title ?? '');
+      setTz(p.timezone ?? 'America/Los_Angeles');
+      setAvatarColor(p.avatarColor ?? '#6366f1');
+    }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await usersApi.updateProfile({ name, email, title, timezone: tz });
+      if (avatarColor !== state.user?.avatarColor) {
+        await usersApi.updateAvatar(avatarColor);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -227,7 +255,7 @@ function ProfileSection() {
 
       <Section last>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <SaveBtn onClick={save} />
+          <SaveBtn onClick={save} disabled={saving} label={saving ? 'Saving…' : 'Save changes'} />
           {saved && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--s-done-500)', fontSize: 'var(--fs-13)', fontFamily: 'var(--font-sans)' }}>
               <Icon name="check" size={14} /> Saved
@@ -248,22 +276,46 @@ const ROLE_OPTIONS = [
 ];
 
 function WorkspaceSection() {
-  const [wsName, setWsName] = useState(WORKSPACE.name);
-  const [invite, setInvite] = useState('');
+  const { state } = useApp();
+  const workspaceId = state.workspaceId;
+  const [wsName,     setWsName]     = useState('');
+  const [invite,     setInvite]     = useState('');
   const [inviteSent, setInviteSent] = useState('');
-  const [wsSaved, setWsSaved] = useState(false);
-  const [members, setMembers] = useState(
-    WORKSPACE.members.map((m, i) => ({ name: m, role: i === 0 ? 'owner' : i < 2 ? 'admin' : 'member' }))
-  );
+  const [wsSaved,    setWsSaved]    = useState(false);
+  const [members, setMembers] = useState([]);
+
+  // Load workspace + members from API
+  useEffect(() => {
+    if (!workspaceId) return;
+    workspaceApi.get(workspaceId).then(ws => setWsName(ws.name)).catch(() => {});
+    membersApi.list(workspaceId).then(data => {
+      if (data.members?.length) setMembers(data.members);
+    }).catch(() => {});
+  }, [workspaceId]);
 
   function handleInvite() {
-    if (!invite.trim()) return;
-    setInviteSent(invite.trim());
+    if (!invite.trim() || !workspaceId) return;
+    const email = invite.trim();
+    membersApi.invite(workspaceId, email).catch(console.error);
+    setInviteSent(email);
     setInvite('');
     setTimeout(() => setInviteSent(''), 4000);
   }
 
+  function handleRoleChange(memberEmail, role) {
+    if (!workspaceId) return;
+    setMembers(ms => ms.map(m => m.email === memberEmail ? { ...m, role } : m));
+    membersApi.updateRole(workspaceId, memberEmail, role).catch(console.error);
+  }
+
+  function handleRemoveMember(memberEmail) {
+    if (!workspaceId) return;
+    setMembers(ms => ms.filter(m => m.email !== memberEmail));
+    membersApi.remove(workspaceId, memberEmail).catch(console.error);
+  }
+
   function handleSaveWs() {
+    if (workspaceId) workspaceApi.update(workspaceId, { name: wsName }).catch(console.error);
     setWsSaved(true);
     setTimeout(() => setWsSaved(false), 3000);
   }
@@ -296,7 +348,7 @@ function WorkspaceSection() {
               </div>
               <select
                 value={m.role}
-                onChange={e => setMembers(ms => ms.map((x, j) => j === i ? { ...x, role: e.target.value } : x))}
+                onChange={e => handleRoleChange(m.email, e.target.value)}
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-sm)', color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 12, padding: '3px 8px', cursor: m.role === 'owner' ? 'not-allowed' : 'pointer' }}
                 disabled={m.role === 'owner'}
               >
@@ -304,7 +356,7 @@ function WorkspaceSection() {
               </select>
               {m.role !== 'owner' && (
                 <button
-                  onClick={() => setMembers(ms => ms.filter((_, j) => j !== i))}
+                  onClick={() => handleRemoveMember(m.email)}
                   className="oc-btn oc-btn--ghost oc-btn--icon"
                   style={{ color: 'var(--fg-subtle)' }}
                 >
@@ -333,16 +385,19 @@ function WorkspaceSection() {
 
       <Section title="Spaces">
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
-          {WORKSPACE.spaces.map((sp, i) => (
+          {state.spaces.length === 0 && (
+            <div style={{ padding: '12px 14px', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-subtle)' }}>No spaces yet</div>
+          )}
+          {state.spaces.map((sp, i) => (
             <div
               key={sp.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                borderBottom: i < WORKSPACE.spaces.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                borderBottom: i < state.spaces.length - 1 ? '1px solid var(--border-subtle)' : 'none',
               }}
             >
-              <span style={{ width: 24, height: 24, borderRadius: 6, background: sp.color + '22', color: sp.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name={sp.icon} size={13} strokeWidth={2.4} />
+              <span style={{ width: 24, height: 24, borderRadius: 6, background: (sp.color ?? 'var(--accent)') + '22', color: sp.color ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name={sp.icon ?? 'layers'} size={13} strokeWidth={2.4} />
               </span>
               <span style={{ flex: 1, fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)' }}>{sp.name}</span>
               <Badge label="Active" color="green" />
@@ -465,17 +520,52 @@ function AppearanceSection({ tweaks, setKey }) {
 // ─── Notifications section ────────────────────────────────────────────────────
 function NotificationsSection() {
   const [prefs, setPrefs] = useState({
-    taskAssigned: true,
-    taskMentioned: true,
-    taskCommented: true,
-    taskCompleted: false,
-    weeklyDigest: true,
-    releaseNotes: false,
-    inAppBadges: true,
-    inAppSounds: false,
+    taskAssigned: true, taskMentioned: true, taskCommented: true,
+    taskCompleted: false, weeklyDigest: true, releaseNotes: false,
+    inAppBadges: true, inAppSounds: false,
   });
+  const [saved, setSaved]   = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    usersApi.getNotificationPrefs().then(data => {
+      setPrefs({
+        taskAssigned:  data.email?.taskAssigned  ?? true,
+        taskMentioned: data.email?.taskMentioned ?? true,
+        taskCommented: data.email?.taskCommented ?? false,
+        taskCompleted: data.email?.taskCompleted ?? false,
+        weeklyDigest:  data.email?.weeklyDigest  ?? false,
+        releaseNotes:  data.email?.releaseNotes  ?? true,
+        inAppBadges:   data.inApp?.badges ?? true,
+        inAppSounds:   data.inApp?.sounds ?? false,
+      });
+    }).catch(() => {});
+  }, []);
+
   const toggle = k => setPrefs(p => ({ ...p, [k]: !p[k] }));
-  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await usersApi.updateNotificationPrefs({
+        email: {
+          taskAssigned:  prefs.taskAssigned,
+          taskMentioned: prefs.taskMentioned,
+          taskCommented: prefs.taskCommented,
+          taskCompleted: prefs.taskCompleted,
+          weeklyDigest:  prefs.weeklyDigest,
+          releaseNotes:  prefs.releaseNotes,
+        },
+        inApp: { badges: prefs.inAppBadges, sounds: prefs.inAppSounds },
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save notification prefs:', err);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
@@ -500,7 +590,7 @@ function NotificationsSection() {
           <Toggle key={k} value={prefs[k]} onChange={() => toggle(k)} label={label} />
         ))}
         <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <SaveBtn onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }} />
+          <SaveBtn onClick={save} disabled={saving} label={saving ? 'Saving…' : 'Save changes'} />
           {saved && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--s-done-500)', fontSize: 'var(--fs-13)', fontFamily: 'var(--font-sans)' }}>
               <Icon name="check" size={14} /> Saved
@@ -513,19 +603,51 @@ function NotificationsSection() {
 }
 
 // ─── Integrations section ─────────────────────────────────────────────────────
-const INTEGRATIONS = [
-  { id: 'github',   name: 'GitHub',   icon: 'github',       desc: 'Link PRs and commits to tasks', connected: true,  connectedAs: 'orbital-eng' },
+const INTEGRATIONS_FALLBACK = [
+  { id: 'github',   name: 'GitHub',   icon: 'github',       desc: 'Link PRs and commits to tasks', connected: false },
   { id: 'gitlab',   name: 'GitLab',   icon: 'git-branch',   desc: 'Link merge requests to tasks',   connected: false },
   { id: 'slack',    name: 'Slack',    icon: 'slack',        desc: 'Get task updates in Slack',      connected: false },
   { id: 'linear',   name: 'Linear',   icon: 'zap',          desc: 'Sync issues bidirectionally',   connected: false },
   { id: 'figma',    name: 'Figma',    icon: 'figma',        desc: 'Attach designs to tasks',        connected: false },
   { id: 'jira',     name: 'Jira',     icon: 'briefcase',    desc: 'Import from Jira projects',      connected: false },
-  { id: 'webhooks', name: 'Webhooks', icon: 'webhook',      desc: 'Send events to any endpoint',    connected: true,  connectedAs: '2 endpoints' },
+  { id: 'webhooks', name: 'Webhooks', icon: 'webhook',      desc: 'Send events to any endpoint',    connected: false },
 ];
 
 function IntegrationsSection() {
-  const [list, setList] = useState(INTEGRATIONS);
-  const toggle = id => setList(ls => ls.map(x => x.id === id ? { ...x, connected: !x.connected } : x));
+  const { state } = useApp();
+  const workspaceId = state.workspaceId;
+  const [list, setList] = useState(INTEGRATIONS_FALLBACK);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    integrationsApi.list(workspaceId).then(data => {
+      if (data.integrations?.length) setList(data.integrations);
+    }).catch(() => {});
+  }, [workspaceId]);
+
+  function toggle(id) {
+    const item = list.find(x => x.id === id);
+    if (!item || !workspaceId) return;
+
+    if (item.connected) {
+      // Disconnect — optimistic
+      setList(ls => ls.map(x => x.id === id ? { ...x, connected: false, connectedAs: null } : x));
+      integrationsApi.disconnect(workspaceId, id).catch(() => {
+        setList(ls => ls.map(x => x.id === id ? { ...x, connected: true, connectedAs: item.connectedAs } : x));
+      });
+    } else {
+      // Connect — open OAuth authorization URL
+      integrationsApi.connect(workspaceId, id)
+        .then(data => {
+          if (data?.authUrl) {
+            window.open(data.authUrl, '_blank', 'width=600,height=700,noopener');
+          } else {
+            alert(data?.message ?? `${id} OAuth is not configured on this server.`);
+          }
+        })
+        .catch(err => console.error('connect failed:', err));
+    }
+  }
 
   return (
     <Section title="Connected apps" last>
@@ -580,12 +702,35 @@ function SecuritySection() {
   const [twofa, setTwofa] = useState(false);
   const [sessions, setSessions] = useState(SESSIONS);
   const [pwUpdated, setPwUpdated] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
 
-  function handleUpdatePassword() {
+  // Load real sessions from API
+  useEffect(() => {
+    usersApi.listSessions()
+      .then(data => { if (data.sessions?.length) setSessions(data.sessions); })
+      .catch(() => {});
+  }, []);
+
+  async function handleUpdatePassword() {
     if (!currentPw || !newPw || newPw !== confirmPw) return;
-    setPwUpdated(true);
-    setCurrentPw(''); setNewPw(''); setConfirmPw('');
-    setTimeout(() => setPwUpdated(false), 3000);
+    setPwSaving(true);
+    setPwError('');
+    try {
+      await usersApi.changePassword({ current_password: currentPw, new_password: newPw, confirm_password: confirmPw });
+      setPwUpdated(true);
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => setPwUpdated(false), 3000);
+    } catch (err) {
+      setPwError(err.message || 'Failed to update password');
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
+  function handleRevokeSession(id) {
+    setSessions(ss => ss.filter(x => x.id !== id));
+    usersApi.revokeSession(id).catch(console.error);
   }
 
   function strength(pw) {
@@ -643,7 +788,12 @@ function SecuritySection() {
             <div style={{ color: 'var(--s-blocked-500)', fontSize: 11, fontFamily: 'var(--font-sans)', marginTop: 4 }}>Passwords don't match</div>
           )}
         </Field>
-        <SaveBtn label={pwUpdated ? 'Password updated!' : 'Update password'} onClick={handleUpdatePassword} disabled={!currentPw || !newPw || newPw !== confirmPw} />
+        {pwError && (
+          <div style={{ color: 'var(--s-blocked-500)', fontSize: 'var(--fs-12)', fontFamily: 'var(--font-sans)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="alert-circle" size={12} /> {pwError}
+          </div>
+        )}
+        <SaveBtn label={pwUpdated ? 'Password updated!' : pwSaving ? 'Updating…' : 'Update password'} onClick={handleUpdatePassword} disabled={!currentPw || !newPw || newPw !== confirmPw || pwSaving} />
       </Section>
 
       <Section title="Two-factor authentication">
@@ -677,7 +827,7 @@ function SecuritySection() {
                 </div>
               </div>
               {!s.current && (
-                <button className="oc-btn oc-btn--ghost" style={{ color: 'var(--fg-subtle)', fontSize: 12 }} onClick={() => setSessions(ss => ss.filter(x => x.id !== s.id))}>
+                <button className="oc-btn oc-btn--ghost" style={{ color: 'var(--fg-subtle)', fontSize: 12 }} onClick={() => handleRevokeSession(s.id)}>
                   Revoke
                 </button>
               )}
@@ -691,8 +841,31 @@ function SecuritySection() {
 
 // ─── Billing section ──────────────────────────────────────────────────────────
 function BillingSection() {
+  const { state } = useApp();
+  const workspaceId = state.workspaceId;
   const [upgradeShown, setUpgradeShown] = useState(false);
   const [manageShown, setManageShown] = useState(false);
+  const [sub, setSub] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [payment, setPayment] = useState(null);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    billingApi.getSubscription(workspaceId).then(setSub).catch(() => {});
+    billingApi.getInvoices(workspaceId).then(data => { if (data.invoices?.length) setInvoices(data.invoices); }).catch(() => {});
+    billingApi.getPaymentMethod(workspaceId).then(setPayment).catch(() => {});
+  }, [workspaceId]);
+
+  const plan      = sub?.plan      ?? 'Pro';
+  const pricePerSeat = sub?.pricePerSeat ?? 16;
+  const seats     = sub?.seats     ?? 5;
+  const storage   = sub?.storageTotalGb ?? 50;
+  const usedStorage = sub?.storageUsedGb ?? 0;
+  const apiCalls  = sub?.apiCallsUsed ?? 0;
+  const apiLimit  = sub?.apiCallsLimit ?? 50000;
+  const renewal   = sub?.renewalDate ?? 'May 1, 2026';
+  const billingCycle = sub?.billingCycle ?? 'Monthly';
+  const paymentStr = payment ? `•••• ${payment.last4} (${payment.brand})` : '—';
 
   return (
     <>
@@ -713,7 +886,7 @@ function BillingSection() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5,5,10,0.5)', backdropFilter: 'blur(4px)' }} onClick={() => setManageShown(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xl)', padding: 32, width: 420, animation: 'oc-scale-in 200ms var(--ease-out)' }}>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 16 }}>Manage subscription</div>
-            {[{ label: 'Plan', val: 'Pro · $16/seat/mo' }, { label: 'Billing cycle', val: 'Monthly' }, { label: 'Next renewal', val: 'May 1, 2026' }, { label: 'Payment method', val: '•••• 4242 (Visa)' }].map(r => (
+            {[{ label: 'Plan', val: `${plan} · $${pricePerSeat}/seat/mo` }, { label: 'Billing cycle', val: billingCycle }, { label: 'Next renewal', val: renewal }, { label: 'Payment method', val: paymentStr }].map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)' }}>
                 <span style={{ color: 'var(--fg-muted)' }}>{r.label}</span>
                 <span style={{ color: 'var(--fg)', fontWeight: 500 }}>{r.val}</span>
@@ -731,15 +904,15 @@ function BillingSection() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', opacity: 0.7, marginBottom: 4 }}>CURRENT PLAN</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700 }}>Pro</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700 }}>{plan}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700 }}>$16</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 700 }}>${pricePerSeat}</div>
               <div style={{ fontSize: 12, opacity: 0.7 }}>per seat / month</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
-            {[['5', 'seats'], ['50 GB', 'storage'], ['Unlimited', 'projects']].map(([val, lbl]) => (
+            {[[String(seats), 'seats'], [`${storage} GB`, 'storage'], ['Unlimited', 'projects']].map(([val, lbl]) => (
               <div key={lbl}>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700 }}>{val}</div>
                 <div style={{ fontSize: 11, opacity: 0.7 }}>{lbl}</div>
@@ -755,9 +928,9 @@ function BillingSection() {
 
       <Section title="Usage">
         {[
-          { label: 'Seats', used: 5, total: 5 },
-          { label: 'Storage', used: 12.4, total: 50, unit: 'GB' },
-          { label: 'API calls', used: 8200, total: 50000, unit: '' },
+          { label: 'Seats', used: seats, total: sub?.seatsLimit ?? seats },
+          { label: 'Storage', used: usedStorage, total: storage, unit: 'GB' },
+          { label: 'API calls', used: apiCalls, total: apiLimit, unit: '' },
         ].map(({ label, used, total, unit = '' }) => (
           <div key={label} style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-muted)', marginBottom: 6 }}>
@@ -772,18 +945,18 @@ function BillingSection() {
       </Section>
 
       <Section title="Billing history" last>
-        {[
-          { date: 'Apr 1, 2026', desc: 'Pro plan · 5 seats', amount: '$80.00' },
-          { date: 'Mar 1, 2026', desc: 'Pro plan · 5 seats', amount: '$80.00' },
-          { date: 'Feb 1, 2026', desc: 'Pro plan · 4 seats', amount: '$64.00' },
-        ].map((inv, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none' }}>
+        {invoices.length === 0 ? (
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-subtle)', padding: '12px 0' }}>No invoices yet</div>
+        ) : invoices.map((inv, i) => (
+          <div key={inv.id ?? i} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: i < invoices.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)' }}>{inv.desc}</div>
-              <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-sans)' }}>{inv.date}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)' }}>{inv.desc ?? inv.description}</div>
+              <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-sans)' }}>{inv.date ?? inv.paidAt}</div>
             </div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-13)', color: 'var(--fg)', marginRight: 12 }}>{inv.amount}</span>
-            <button className="oc-btn oc-btn--ghost oc-btn--icon" title="Download invoice"><Icon name="download" size={13} /></button>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-13)', color: 'var(--fg)', marginRight: 12 }}>{inv.amount ?? inv.total}</span>
+            {inv.url && (
+              <a href={inv.url} target="_blank" rel="noreferrer" className="oc-btn oc-btn--ghost oc-btn--icon" title="Download invoice"><Icon name="download" size={13} /></a>
+            )}
           </div>
         ))}
       </Section>
@@ -793,9 +966,39 @@ function BillingSection() {
 
 // ─── Danger zone section ──────────────────────────────────────────────────────
 function DangerSection({ onClose }) {
+  const { state } = useApp();
+  const workspaceId = state.workspaceId;
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
+  const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleLeave() {
+    if (!workspaceId) return;
+    setLeaving(true);
+    try {
+      await membersApi.leaveWorkspace(workspaceId);
+      onClose();
+    } catch (err) {
+      console.error('Failed to leave workspace:', err);
+    } finally {
+      setLeaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteInput !== 'delete my account') return;
+    setDeleting(true);
+    try {
+      await usersApi.deleteAccount();
+      onClose();
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <Section title="Danger zone" last>
@@ -817,7 +1020,7 @@ function DangerSection({ onClose }) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
               <span style={{ flex: 1, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-muted)' }}>Are you sure? This action cannot be undone.</span>
               <button className="oc-btn oc-btn--ghost" onClick={() => setConfirmLeave(false)}>Cancel</button>
-              <button className="oc-btn" style={{ background: 'var(--s-blocked-500)', color: '#fff', border: 'none' }} onClick={onClose}>Confirm leave</button>
+              <button className="oc-btn" style={{ background: 'var(--s-blocked-500)', color: '#fff', border: 'none', opacity: leaving ? 0.6 : 1 }} disabled={leaving} onClick={handleLeave}>{leaving ? 'Leaving…' : 'Confirm leave'}</button>
             </div>
           )}
         </div>
@@ -845,11 +1048,11 @@ function DangerSection({ onClose }) {
                 <button className="oc-btn oc-btn--ghost" onClick={() => { setConfirmDelete(false); setDeleteInput(''); }}>Cancel</button>
                 <button
                   className="oc-btn"
-                  style={{ background: deleteInput === 'delete my account' ? 'var(--s-blocked-500)' : 'var(--bg-card)', color: deleteInput === 'delete my account' ? '#fff' : 'var(--fg-muted)', border: 'none', cursor: deleteInput === 'delete my account' ? 'pointer' : 'not-allowed' }}
-                  disabled={deleteInput !== 'delete my account'}
-                  onClick={onClose}
+                  style={{ background: deleteInput === 'delete my account' ? 'var(--s-blocked-500)' : 'var(--bg-card)', color: deleteInput === 'delete my account' ? '#fff' : 'var(--fg-muted)', border: 'none', cursor: deleteInput === 'delete my account' ? 'pointer' : 'not-allowed', opacity: deleting ? 0.6 : 1 }}
+                  disabled={deleteInput !== 'delete my account' || deleting}
+                  onClick={handleDeleteAccount}
                 >
-                  Permanently delete
+                  {deleting ? 'Deleting…' : 'Permanently delete'}
                 </button>
               </div>
             </div>

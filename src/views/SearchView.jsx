@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Icon, Avatar, StatusChip } from '../components/primitives.jsx';
 import { useApp, A } from '../store/AppContext.jsx';
-import { WORKSPACE } from '../data.js';
+import * as searchApi from '../api/search.js';
 
 const RECENT = [
   { icon: 'hash', label: 'ORB-419 · Scheduler core implementation', type: 'task', taskId: 'ORB-419' },
@@ -20,10 +20,13 @@ const QUICK_ACTIONS = [
 const TABS = ['All', 'Tasks', 'Members', 'Tags'];
 
 export function SearchView({ onClose }) {
-  const { state, dispatch } = useApp();
-  const [q, setQ] = useState('');
+  const { state, dispatch, memberNames } = useApp();
+  const workspaceId = state.workspaceId;
+  const [q, setQ]     = useState('');
   const [tab, setTab] = useState('All');
+  const [apiResults, setApiResults] = useState(null);
   const inputRef = useRef(null);
+  const debounceRef = useRef(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 20); }, []);
 
@@ -33,29 +36,45 @@ export function SearchView({ onClose }) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  // Debounced API search
+  useEffect(() => {
+    if (!q || !workspaceId) { setApiResults(null); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      searchApi.search(workspaceId, q)
+        .then(data => setApiResults(data))
+        .catch(() => setApiResults(null));
+    }, 280);
+    return () => clearTimeout(debounceRef.current);
+  }, [q, workspaceId]);
+
   const allTags = useMemo(() => [...new Set(state.tasks.flatMap(t => t.tags))].sort(), [state.tasks]);
 
+  // Use API results when available, fall back to local state
   const taskResults = useMemo(() => {
     if (!q) return [];
+    if (apiResults?.tasks) return apiResults.tasks;
     const lq = q.toLowerCase();
     return state.tasks.filter(t =>
       t.title.toLowerCase().includes(lq) ||
       t.id.toLowerCase().includes(lq) ||
       t.tags.some(tag => tag.toLowerCase().includes(lq))
     );
-  }, [q, state.tasks]);
+  }, [q, state.tasks, apiResults]);
 
   const memberResults = useMemo(() => {
     if (!q) return [];
+    if (apiResults?.members) return apiResults.members.map(m => m.name ?? m);
     const lq = q.toLowerCase();
-    return WORKSPACE.members.filter(m => m.toLowerCase().includes(lq));
-  }, [q]);
+    return memberNames.filter(m => m.toLowerCase().includes(lq));
+  }, [q, apiResults]);
 
   const tagResults = useMemo(() => {
     if (!q) return [];
+    if (apiResults?.tags) return apiResults.tags.map(t => t.name ?? t);
     const lq = q.toLowerCase();
     return allTags.filter(t => t.toLowerCase().includes(lq));
-  }, [q, allTags]);
+  }, [q, allTags, apiResults]);
 
   function openTask(taskId) {
     dispatch({ type: A.SET_UI, payload: { openTaskId: taskId, sidePanel: null } });
