@@ -960,18 +960,8 @@ function BreadcrumbItem({ label, items, renderItem, active }) {
 // ─── ProjectHeader more-options menu ─────────────────────────────────────────
 function MoreMenu({ tasks }) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [toast, setToast] = useState(null);
-  const [confirmArchive, setConfirmArchive] = useState(false);
   const ref = useRef(null);
-  const editRef = useRef(null);
-  useClickOutside(ref, () => { setOpen(false); setConfirmArchive(false); });
-
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }
+  useClickOutside(ref, () => setOpen(false));
 
   function exportCSV() {
     const headers = ['ID','Title','Status','Priority','Assignees','Due','Tags'];
@@ -985,12 +975,7 @@ function MoreMenu({ tasks }) {
   }
 
   const items = [
-    { icon: 'pencil',  label: 'Edit project details', action: () => { setEditing(true); setOpen(false); setTimeout(() => editRef.current?.focus(), 50); } },
-    null,
-    { icon: 'download', label: 'Export as CSV',        action: exportCSV },
-    { icon: 'copy',    label: 'Duplicate project',     action: () => { showToast(`Duplicated "${projectName}"`); setOpen(false); } },
-    null,
-    { icon: 'archive', label: 'Archive project',       action: () => setConfirmArchive(true), danger: false },
+    { icon: 'download', label: 'Export as CSV', action: exportCSV },
   ];
 
   return (
@@ -998,67 +983,16 @@ function MoreMenu({ tasks }) {
       <button className="oc-btn oc-btn--ghost oc-btn--icon" onClick={() => setOpen(o => !o)}>
         <Icon name="more-horizontal" size={15} />
       </button>
-
-      {/* Inline project name editor */}
-      {editing && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 200, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', padding: 12, width: 280, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 8 }}>Edit project details</div>
-          <input
-            ref={editRef}
-            value={projectName}
-            onChange={e => setProjectName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { showToast('Project details saved'); setEditing(false); } if (e.key === 'Escape') setEditing(false); }}
-            className="oc-input"
-            style={{ width: '100%', marginBottom: 8 }}
-          />
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button className="oc-btn oc-btn--ghost oc-btn--sm" onClick={() => setEditing(false)}>Cancel</button>
-            <button className="oc-btn oc-btn--primary oc-btn--sm" onClick={() => { showToast('Project details saved'); setEditing(false); }}>Save</button>
-          </div>
-        </div>
-      )}
-
-      {/* Archive confirm */}
-      {confirmArchive && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 200, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', padding: 14, width: 260, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 600, color: 'var(--fg)', marginBottom: 6 }}>Archive this project?</div>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--fg-muted)', marginBottom: 12 }}>Archived projects are hidden from navigation but remain searchable.</div>
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button className="oc-btn oc-btn--ghost oc-btn--sm" onClick={() => setConfirmArchive(false)}>Cancel</button>
-            <button className="oc-btn oc-btn--sm" style={{ background: 'var(--s-blocked-500)', color: '#fff', border: 'none', borderRadius: 'var(--r-md)', padding: '0 10px', height: 28, fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', fontWeight: 500, cursor: 'pointer' }} onClick={() => { showToast('Project archived'); setConfirmArchive(false); }}>Archive</button>
-          </div>
-        </div>
-      )}
-
       {open && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 200, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 200, padding: 6, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
-          {items.map((it, i) => it === null
-            ? <div key={i} style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-            : (
-              <button key={it.label} onClick={it.action} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <Icon name={it.icon} size={13} style={{ color: 'var(--fg-muted)' }} /> {it.label}
-              </button>
-            )
-          )}
-        </div>
-      )}
-
-      {/* Toast */}
-      {toast && (
-        <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-          borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)',
-          padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8,
-          fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)',
-          zIndex: 9999, animation: 'oc-fade-in 200ms var(--ease-out)',
-          pointerEvents: 'none',
-        }}>
-          <Icon name="check-circle-2" size={14} style={{ color: 'var(--s-done-500)' }} />
-          {toast}
+        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 200, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 180, padding: 6, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
+          {items.map(it => (
+            <button key={it.label} onClick={it.action} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Icon name={it.icon} size={13} style={{ color: 'var(--fg-muted)' }} /> {it.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

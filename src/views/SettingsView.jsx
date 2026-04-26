@@ -907,28 +907,27 @@ function BillingSection() {
     billingApi.getPaymentMethod(workspaceId).then(setPayment).catch(() => {});
   }, [workspaceId]);
 
-  const plan      = sub?.plan      ?? 'Pro';
-  const pricePerSeat = sub?.pricePerSeat ?? 16;
-  const seats     = sub?.seats     ?? 5;
-  const storage   = sub?.storageTotalGb ?? 50;
-  const usedStorage = sub?.storageUsedGb ?? 0;
-  const apiCalls  = sub?.apiCallsUsed ?? 0;
-  const apiLimit  = sub?.apiCallsLimit ?? 50000;
-  const renewal   = sub?.renewalDate ?? 'May 1, 2026';
-  const billingCycle = sub?.billingCycle ?? 'Monthly';
-  const paymentStr = payment ? `•••• ${payment.last4} (${payment.brand})` : '—';
+  const plan         = sub?.plan           ?? '—';
+  const pricePerSeat = sub?.pricePerSeat   ?? 0;
+  const seats        = sub?.seats          ?? 0;
+  const storage      = sub?.storageTotalGb ?? 0;
+  const usedStorage  = sub?.storageUsedGb  ?? 0;
+  const apiCalls     = sub?.apiCallsUsed   ?? 0;
+  const apiLimit     = sub?.apiCallsLimit  ?? 0;
+  const renewal      = sub?.renewalDate    ?? '—';
+  const billingCycle = sub?.billingCycle   ?? '—';
+  const paymentStr   = payment ? `•••• ${payment.last4} (${payment.brand})` : '—';
 
   return (
     <>
       {upgradeShown && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(5,5,10,0.5)', backdropFilter: 'blur(4px)' }} onClick={() => setUpgradeShown(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xl)', padding: 32, width: 400, textAlign: 'center', animation: 'oc-scale-in 200ms var(--ease-out)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🚀</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>Business Plan</div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-muted)', marginBottom: 24 }}>Unlimited seats, 500 GB storage, priority support, SSO, and audit logs — at $32 per seat/month.</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 8 }}>Upgrade your plan</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg-muted)', marginBottom: 24 }}>To upgrade or change your plan, contact us and we'll get you set up.</div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button className="oc-btn oc-btn--ghost" onClick={() => setUpgradeShown(false)}>Maybe later</button>
-              <button className="oc-btn oc-btn--primary" onClick={() => setUpgradeShown(false)}><Icon name="zap" size={13} /> Upgrade now</button>
+              <a href="mailto:support@openclick.dev" className="oc-btn oc-btn--primary" style={{ textDecoration: 'none' }} onClick={() => setUpgradeShown(false)}>Contact us</a>
             </div>
           </div>
         </div>
@@ -943,9 +942,11 @@ function BillingSection() {
                 <span style={{ color: 'var(--fg)', fontWeight: 500 }}>{r.val}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button className="oc-btn oc-btn--ghost" style={{ color: 'var(--s-blocked-500)' }} onClick={() => setManageShown(false)}>Cancel subscription</button>
-              <button className="oc-btn oc-btn--primary" onClick={() => setManageShown(false)}>Done</button>
+            <div style={{ marginTop: 16, padding: 12, background: 'var(--bg-surface)', borderRadius: 'var(--r-md)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-muted)' }}>
+              To cancel or modify your subscription, email <a href="mailto:support@openclick.dev" style={{ color: 'var(--accent)' }}>support@openclick.dev</a>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button className="oc-btn oc-btn--secondary" onClick={() => setManageShown(false)}>Close</button>
             </div>
           </div>
         </div>
