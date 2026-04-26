@@ -137,7 +137,7 @@ export function Sidebar({ collapsed, width, onLogout }) {
         <SideItem icon="search" label="Search" collapsed={collapsed}
           active={sidePanel === 'search'}
           onClick={() => dispatch({ type: A.SET_UI, payload: { sidePanel: sidePanel === 'search' ? null : 'search' } })} />
-        <SideItem icon="inbox" label="Inbox" badge={sidePanel === 'inbox' ? null : '4'} collapsed={collapsed}
+        <SideItem icon="inbox" label="Inbox" collapsed={collapsed}
           active={sidePanel === 'inbox'}
           onClick={() => dispatch({ type: A.SET_UI, payload: { sidePanel: sidePanel === 'inbox' ? null : 'inbox' } })} />
         <SideItem icon="bell" label="Notifications" collapsed={collapsed}
@@ -539,52 +539,6 @@ export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme })
             </button>
           )}
         />
-        <Icon name="chevron-right" size={11} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
-        <BreadcrumbItem
-          label="Runtime · v0.8"
-          items={[
-            { label: 'Runtime · v0.8', active: true },
-            { label: 'Dashboard UI', active: false },
-            { label: 'API platform', active: false },
-            { label: 'DX & tooling', active: false },
-          ]}
-          renderItem={(it, close) => (
-            <button key={it.label} onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <Icon name="box" size={13} style={{ color: 'var(--fg-muted)' }} />
-              <span style={{ flex: 1 }}>{it.label}</span>
-              {it.active && <Icon name="check" size={12} style={{ color: 'var(--accent)' }} />}
-            </button>
-          )}
-        />
-        <Icon name="chevron-right" size={11} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
-        <BreadcrumbItem
-          label="Sprint 24"
-          active
-          items={[
-            { label: 'Sprint 23', sub: 'Ended Apr 6', icon: 'archive' },
-            { label: 'Sprint 24', sub: 'Ends May 3', icon: 'activity', active: true },
-            { label: 'Sprint 25', sub: 'Upcoming', icon: 'clock' },
-          ]}
-          renderItem={(it, close) => (
-            <button key={it.label} onClick={close} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', color: 'var(--fg)', textAlign: 'left' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <Icon name={it.icon} size={13} style={{ color: it.active ? 'var(--accent)' : 'var(--fg-muted)', flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: it.active ? 600 : 400, color: it.active ? 'var(--fg)' : 'var(--fg-muted)' }}>{it.label}</div>
-                <div style={{ fontSize: 10, color: 'var(--fg-subtle)' }}>{it.sub}</div>
-              </div>
-              {it.active && <Icon name="check" size={12} style={{ color: 'var(--accent)' }} />}
-            </button>
-          )}
-        />
-        <div style={{ marginLeft: 6 }}>
-          <span className="oc-branch"><Icon name="git-branch" size={10} strokeWidth={2.4} />main</span>
-        </div>
       </nav>
       <button
         onClick={onOpenCommand}
@@ -610,9 +564,8 @@ export function Topbar({ onOpenCommand, onToggleSidebar, theme, onToggleTheme })
         </button>
         <div style={{ width: 1, height: 20, background: 'var(--border-subtle)' }} />
         <button className="oc-btn oc-btn--ghost oc-btn--icon" title="Activity" onClick={() => dispatch({ type: A.SET_UI, payload: { sidePanel: 'activity' } })}><Icon name="activity" size={15} /></button>
-        <button className="oc-btn oc-btn--ghost oc-btn--icon" style={{ position: 'relative' }} title="Notifications" onClick={() => dispatch({ type: A.SET_UI, payload: { sidePanel: 'notifications' } })}>
+        <button className="oc-btn oc-btn--ghost oc-btn--icon" title="Notifications" onClick={() => dispatch({ type: A.SET_UI, payload: { sidePanel: 'notifications' } })}>
           <Icon name="bell" size={15} />
-          <span style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 999, background: 'var(--s-blocked-500)' }} />
         </button>
         <div style={{ width: 1, height: 20, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <AvatarStack names={members.slice(0, 4).map(m => m.name)} max={3} size={22} />
