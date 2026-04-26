@@ -617,12 +617,31 @@ function IntegrationsSection() {
   const { state } = useApp();
   const workspaceId = state.workspaceId;
   const [list, setList] = useState(INTEGRATIONS_FALLBACK);
+  const [toast, setToast] = useState(null); // { provider, success }
+
+  function loadList(wsId) {
+    integrationsApi.list(wsId).then(data => {
+      if (data.integrations?.length) setList(data.integrations);
+    }).catch(() => {});
+  }
 
   useEffect(() => {
     if (!workspaceId) return;
-    integrationsApi.list(workspaceId).then(data => {
-      if (data.integrations?.length) setList(data.integrations);
-    }).catch(() => {});
+    loadList(workspaceId);
+  }, [workspaceId]);
+
+  // Listen for OAuth popup result broadcast via localStorage
+  useEffect(() => {
+    function handleStorage(e) {
+      if (e.key !== 'oauth_result' || !e.newValue) return;
+      const [provider, status] = e.newValue.split(':');
+      localStorage.removeItem('oauth_result');
+      setToast({ provider, success: status === 'success' });
+      if (status === 'success' && workspaceId) loadList(workspaceId);
+      setTimeout(() => setToast(null), 4000);
+    }
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [workspaceId]);
 
   function toggle(id) {
@@ -651,6 +670,19 @@ function IntegrationsSection() {
 
   return (
     <Section title="Connected apps" last>
+      {toast && (
+        <div style={{
+          marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--r-md)',
+          background: toast.success ? 'var(--green-subtle, rgba(34,197,94,0.1))' : 'var(--red-subtle, rgba(239,68,68,0.1))',
+          border: `1px solid ${toast.success ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          color: toast.success ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)',
+          fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)',
+        }}>
+          {toast.success
+            ? `${toast.provider.charAt(0).toUpperCase() + toast.provider.slice(1)} connected successfully`
+            : `Failed to connect ${toast.provider}. Please try again.`}
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {list.map(it => (
           <div

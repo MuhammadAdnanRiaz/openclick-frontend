@@ -252,6 +252,15 @@ export default function App() {
     document.documentElement.setAttribute('data-density', 'comfortable');
   }, []);
 
+  // Handle OAuth popup callback — detect ?oauth_result=provider:status, broadcast via localStorage, close popup
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthResult = params.get('oauth_result');
+    if (!oauthResult) return;
+    localStorage.setItem('oauth_result', oauthResult);
+    window.close();
+  }, []);
+
   function handleAuth(data) {
     // data = { user, workspace, access_token, refresh_token } — already stored by api/auth.js
     setAuthData({ user: data.user, workspaceId: data.workspace?.id ?? null });
