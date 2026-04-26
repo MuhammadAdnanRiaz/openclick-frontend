@@ -365,12 +365,12 @@ function redirectToGitHub() {
   window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&state=auth`;
 }
 
-function redirectToGitLab() {
-  const clientId = import.meta.env.VITE_GITLAB_CLIENT_ID;
-  if (!clientId) { alert('GitLab OAuth is not configured.'); return; }
-  const backendUrl = import.meta.env.VITE_API_BASE_URL;
-  const redirectUri = encodeURIComponent(`${backendUrl}/auth/gitlab/callback`);
-  window.location.href = `https://gitlab.com/oauth/authorize?client_id=${clientId}&response_type=code&scope=read_user&redirect_uri=${redirectUri}`;
+async function redirectToGitLab() {
+  const base = import.meta.env.VITE_API_BASE_URL;
+  const res = await fetch(`${base}/auth/gitlab/url`);
+  const { authUrl } = await res.json();
+  if (!authUrl) { alert('GitLab OAuth is not configured on the server.'); return; }
+  window.location.href = authUrl;
 }
 
 // ─── Login screen ─────────────────────────────────────────────────────────────
