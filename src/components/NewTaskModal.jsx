@@ -46,7 +46,7 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 110,
-        background: 'rgba(5,5,10,0.6)', backdropFilter: 'blur(4px)',
+        background: 'rgba(5,5,10,0.65)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         animation: 'oc-fade-in 150ms var(--ease-out)',
       }}
@@ -55,7 +55,7 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
         style={{
-          width: 520, maxWidth: '94%',
+          width: 560, maxWidth: '96%',
           background: 'var(--bg-elevated)', border: '1px solid var(--border)',
           borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-lg)',
           animation: 'oc-scale-in 180ms var(--ease-out)',
@@ -63,14 +63,14 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '14px 16px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span className="t-h3">New task</span>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <span className="t-h2">New task</span>
           <div style={{ flex: 1 }} />
           <button className="oc-btn oc-btn--ghost oc-btn--icon" onClick={onClose}><Icon name="x" size={15} /></button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Title */}
           <textarea
             ref={titleRef}
@@ -80,21 +80,21 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
             rows={2}
             style={{
               width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'none',
-              color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-16)',
-              fontWeight: 600, lineHeight: 1.3, padding: 0, boxSizing: 'border-box',
+              color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-18)',
+              fontWeight: 600, lineHeight: 1.35, padding: 0, boxSizing: 'border-box',
             }}
           />
 
           {/* Status + Priority row */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <FieldLabel label="Status">
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
                 style={{
                   background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
-                  color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)',
-                  padding: '0 8px', height: 28, cursor: 'pointer',
+                  color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)',
+                  padding: '0 10px', height: 34, cursor: 'pointer', minWidth: 120,
                 }}
               >
                 {Object.entries(STATUSES).map(([k, v]) => (
@@ -104,18 +104,18 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
             </FieldLabel>
 
             <FieldLabel label="Priority">
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 5 }}>
                 {PRIORITIES.map(p => (
                   <button
                     key={p}
                     onClick={() => setPriority(p)}
                     style={{
-                      height: 28, padding: '0 10px', borderRadius: 'var(--r-md)',
+                      height: 34, padding: '0 12px', borderRadius: 'var(--r-md)',
                       border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : 'var(--border)'}`,
                       background: priority === p ? `${PRIORITY_COLORS[p]}22` : 'var(--bg-card)',
                       color: priority === p ? PRIORITY_COLORS[p] : 'var(--fg-muted)',
-                      fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', fontWeight: 500,
-                      cursor: 'pointer',
+                      fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 500,
+                      cursor: 'pointer', transition: 'all 120ms var(--ease-out)',
                     }}
                   >{p}</button>
                 ))}
@@ -131,8 +131,8 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
               onChange={e => setDue(e.target.value)}
               style={{
                 background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
-                color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)',
-                padding: '0 8px', height: 28, cursor: 'pointer',
+                color: 'var(--fg)', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)',
+                padding: '0 10px', height: 34, cursor: 'pointer',
               }}
             />
           </FieldLabel>
@@ -147,15 +147,16 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
                     key={name}
                     onClick={() => toggleAssignee(name)}
                     style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      height: 26, padding: '0 8px 0 4px', borderRadius: 'var(--r-pill)',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      height: 32, padding: '0 10px 0 6px', borderRadius: 'var(--r-pill)',
                       border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
                       background: selected ? 'var(--bg-selected)' : 'var(--bg-card)',
                       color: selected ? 'var(--accent-text)' : 'var(--fg-muted)',
-                      fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', cursor: 'pointer',
+                      fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', cursor: 'pointer',
+                      transition: 'all 120ms var(--ease-out)',
                     }}
                   >
-                    <Avatar name={name} size={16} />
+                    <Avatar name={name} size={18} />
                     {name.split(' ')[0]}
                   </button>
                 );
@@ -172,18 +173,19 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
               style={{
                 flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
                 borderRadius: 'var(--r-md)', color: 'var(--fg)',
-                fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)',
-                padding: '0 10px', height: 28, outline: 'none', width: '100%',
+                fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)',
+                padding: '0 12px', height: 34, outline: 'none', width: '100%',
+                transition: 'border-color 120ms var(--ease-out)',
               }}
-              onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; setTags(tagInput); }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-subtle)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; setTags(tagInput); }}
             />
           </FieldLabel>
         </div>
 
         {/* Footer */}
         <div style={{
-          padding: '10px 16px', borderTop: '1px solid var(--border-subtle)',
+          padding: '12px 20px', borderTop: '1px solid var(--border-subtle)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontSize: 'var(--fs-11)', color: 'var(--fg-subtle)' }}>
@@ -195,7 +197,7 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
               className="oc-btn oc-btn--primary"
               onClick={handleSubmit}
               disabled={!title.trim()}
-              style={{ opacity: title.trim() ? 1 : 0.5 }}
+              style={{ opacity: title.trim() ? 1 : 0.45 }}
             >
               <Icon name="plus" size={13} /> Create task
             </button>
@@ -208,8 +210,8 @@ export function NewTaskModal({ initialStatus = 'open', onClose }) {
 
 function FieldLabel({ label, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span className="t-label" style={{ fontSize: 10 }}>{label}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <span className="t-label">{label}</span>
       {children}
     </div>
   );

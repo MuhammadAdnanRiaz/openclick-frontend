@@ -24,3 +24,9 @@ export async function updateProject(workspaceId, spaceId, projectId, patch) {
     body: JSON.stringify(patch),
   });
 }
+
+export async function deleteProject(workspaceId, spaceId, projectId) {
+  return apiFetch(`/workspaces/${workspaceId}/spaces/${spaceId}/projects/${projectId}`, {
+    method: 'DELETE',
+  });
+}

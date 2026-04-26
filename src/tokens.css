@@ -353,6 +353,9 @@ html, body {
   from { opacity: 1; }
   to   { opacity: 0.4; }
 }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 .oc-shimmer {
   animation: oc-shimmer 900ms ease-in-out infinite alternate;
 }

@@ -552,6 +552,22 @@ function SpaceTree({ space, expanded, workspaceId }) {
                   setProjects(ps => ps.map(x => x.id === p.id ? { ...x, ...updated, spaceId: space.id } : x));
                 } catch {}
               }}
+              onRename={async (newName) => {
+                setProjects(ps => ps.map(x => x.id === p.id ? { ...x, name: newName } : x));
+                try {
+                  await spacesApi.updateProject(workspaceId, space.id, p.id, { name: newName });
+                } catch {
+                  setProjects(ps => ps.map(x => x.id === p.id ? { ...x, name: p.name } : x));
+                }
+              }}
+              onDelete={async () => {
+                setProjects(ps => ps.filter(x => x.id !== p.id));
+                try {
+                  await spacesApi.deleteProject(workspaceId, space.id, p.id);
+                } catch {
+                  setProjects(ps => [...ps, p]);
+                }
+              }}
             />
           ))}
           {pages.map(pg => (
@@ -612,11 +628,47 @@ function AddMenuItem({ icon, label, onClick }) {
   );
 }
 
-function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo, onUnlinkRepo }) {
+function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo, onUnlinkRepo, onRename, onDelete }) {
   const [hover, setHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(label);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
+
+  function startRename() {
+    setMenuOpen(false);
+    setRenameValue(label);
+    setRenaming(true);
+  }
+
+  function commitRename() {
+    const v = renameValue.trim();
+    setRenaming(false);
+    if (v && v !== label) onRename?.(v);
+    else setRenameValue(label);
+  }
+
+  const menuItemStyle = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg)', textAlign: 'left' };
+
+  if (renaming) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px' }}>
+        <Icon name="hash" size={12} style={{ color: 'var(--fg-muted)', flexShrink: 0 }} />
+        <input
+          autoFocus
+          value={renameValue}
+          onChange={e => setRenameValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commitRename();
+            if (e.key === 'Escape') { setRenaming(false); setRenameValue(label); }
+          }}
+          onBlur={commitRename}
+          style={{ flex: 1, height: 22, padding: '0 6px', background: 'var(--bg-card)', border: '1px solid var(--accent)', borderRadius: 'var(--r-sm)', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg)' }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -645,40 +697,63 @@ function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLin
           />
         )}
       </button>
+
       {(hover || menuOpen) && (
         <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
-            style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: menuOpen ? 'var(--bg-press)' : 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: 'var(--fg-subtle)' }}
+            style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: menuOpen ? 'var(--bg-press)' : 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: 'var(--fg-subtle)' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-press)'}
             onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = 'transparent'; }}
           >
             <Icon name="more-horizontal" size={12} />
           </button>
+
           {menuOpen && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 400, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 170, padding: 4, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 400, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 176, padding: 4, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
+
               {repoFullName && (
                 <div style={{ padding: '6px 10px 4px', fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 4 }}>
                   <Icon name={repoProvider === 'github' ? 'github' : 'git-branch'} size={11} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repoFullName}</span>
                 </div>
               )}
-              <button onClick={() => { setMenuOpen(false); onLinkRepo?.(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg)', textAlign: 'left' }}
+
+              <button onClick={startRename} style={menuItemStyle}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Icon name="pencil" size={13} style={{ color: 'var(--fg-muted)' }} />
+                Rename
+              </button>
+
+              <button onClick={() => { setMenuOpen(false); onLinkRepo?.(); }} style={menuItemStyle}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <Icon name="link" size={13} style={{ color: 'var(--fg-muted)' }} />
                 {repoFullName ? 'Change repository' : 'Link repository'}
               </button>
+
               {repoFullName && (
-                <button onClick={() => { setMenuOpen(false); onUnlinkRepo?.(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--s-blocked-500)', textAlign: 'left' }}
+                <button onClick={() => { setMenuOpen(false); onUnlinkRepo?.(); }} style={menuItemStyle}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <Icon name="link-2-off" size={13} />
+                  <Icon name="link-2-off" size={13} style={{ color: 'var(--fg-muted)' }} />
                   Unlink repository
                 </button>
               )}
+
+              <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+
+              <button onClick={() => { setMenuOpen(false); onDelete?.(); }} style={{ ...menuItemStyle, color: 'var(--s-blocked-500)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Icon name="trash-2" size={13} />
+                Delete project
+              </button>
             </div>
           )}
         </div>

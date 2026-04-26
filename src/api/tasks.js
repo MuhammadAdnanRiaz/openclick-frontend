@@ -34,3 +34,10 @@ export async function update(workspaceId, taskId, patch) {
 export async function remove(workspaceId, taskId) {
   return apiFetch(`/workspaces/${workspaceId}/tasks/${taskId}`, { method: 'DELETE' });
 }
+
+export async function createBranch(workspaceId, taskId, { repoProvider, repoFullName, sourceBranch }) {
+  return apiFetch(`/workspaces/${workspaceId}/tasks/${taskId}/branch`, {
+    method: 'POST',
+    body: JSON.stringify({ repoProvider, repoFullName, sourceBranch }),
+  });
+}

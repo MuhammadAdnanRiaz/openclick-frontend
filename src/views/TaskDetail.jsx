@@ -254,12 +254,39 @@ function ActivityEvent({ icon, text, when, color }) {
 
 // ─── Branch row sub-component ─────────────────────────────────────────────────
 
-function BranchRow({ task }) {
+const PROVIDER_ICON = { github: 'github', gitlab: 'gitlab' };
+const PROVIDER_LABEL = { github: 'GitHub', gitlab: 'GitLab' };
+
+function BranchRow({ task, activeProject, workspaceId }) {
   const { dispatch } = useApp();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(task.branch ?? '');
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState(null);
   const [copiedBranch, setCopiedBranch] = useState(false);
+
+  const linkedRepo = activeProject?.repoProvider && activeProject?.repoFullName
+    ? { provider: activeProject.repoProvider, fullName: activeProject.repoFullName }
+    : null;
+
+  async function handleCreate() {
+    if (!linkedRepo) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const updated = await import('../api/tasks.js').then(m =>
+        m.createBranch(workspaceId, task.id, {
+          repoProvider: linkedRepo.provider,
+          repoFullName: linkedRepo.fullName,
+        })
+      );
+      dispatch({ type: A.TASK_UPDATE, payload: { id: task.id, patch: { branch: updated.branch } } });
+    } catch (err) {
+      setError(err.message ?? 'Branch creation failed');
+    }
+    setCreating(false);
+  }
 
   async function save() {
     const trimmed = value.trim();
@@ -301,7 +328,7 @@ function BranchRow({ task }) {
       <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <Icon name="git-branch" size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
         <span className="t-mono" style={{ color: 'var(--fg)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.branch}</span>
-        <button className="oc-btn oc-btn--ghost oc-btn--sm" onClick={copyBranch} style={{ color: copiedBranch ? 'var(--s-done-500)' : undefined, flexShrink: 0 }}>
+        <button className="oc-btn oc-btn--ghost oc-btn--sm" onClick={copyBranch} style={{ color: copiedBranch ? 'var(--s-merged-500)' : undefined, flexShrink: 0 }}>
           {copiedBranch ? <><Icon name="check" size={11} /> Copied</> : 'Copy'}
         </button>
         <button className="oc-btn oc-btn--ghost oc-btn--icon" onClick={() => { setValue(task.branch ?? ''); setEditing(true); }} title="Edit branch" style={{ width: 24, height: 24, flexShrink: 0 }}>
@@ -311,16 +338,53 @@ function BranchRow({ task }) {
     );
   }
 
+  // No branch yet — show create button if repo is linked, else manual input
   return (
-    <button
-      onClick={() => { setValue(''); setEditing(true); }}
-      style={{ width: '100%', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-    >
-      <Icon name="git-branch" size={15} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
-      Add branch name…
-    </button>
+    <div>
+      {linkedRepo ? (
+        <div style={{ padding: '10px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="git-branch" size={15} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+            <button
+              className="oc-btn oc-btn--secondary oc-btn--sm"
+              onClick={handleCreate}
+              disabled={creating}
+              style={{ gap: 5 }}
+            >
+              {creating
+                ? <><Icon name="loader" size={12} style={{ animation: 'spin 1s linear infinite' }} /> Creating…</>
+                : <><Icon name={PROVIDER_ICON[linkedRepo.provider] ?? 'git-branch'} size={12} /> Create on {PROVIDER_LABEL[linkedRepo.provider] ?? linkedRepo.provider}</>
+              }
+            </button>
+            <button
+              className="oc-btn oc-btn--ghost oc-btn--sm"
+              onClick={() => { setValue(''); setEditing(true); }}
+              style={{ color: 'var(--fg-subtle)' }}
+            >
+              Add manually
+            </button>
+          </div>
+          {error && (
+            <p style={{ margin: '6px 0 0', fontSize: 'var(--fs-11)', color: 'var(--p-urgent)', lineHeight: 1.4 }}>
+              {error}
+            </p>
+          )}
+          <p style={{ margin: '5px 0 0', fontSize: 'var(--fs-11)', color: 'var(--fg-subtle)' }}>
+            Will create <span className="t-mono-sm">{task.id.toLowerCase()}-…</span> from <span className="t-mono-sm">main</span> on <span className="t-mono-sm">{linkedRepo.fullName}</span>
+          </p>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setValue(''); setEditing(true); }}
+          style={{ width: '100%', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <Icon name="git-branch" size={15} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+          Add branch name…
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -328,6 +392,9 @@ function BranchRow({ task }) {
 
 export function TaskDetail({ task, onClose, fullPage }) {
   const { state, dispatch, memberNames } = useApp();
+  const activeProject = state.spaces
+    .find(s => s.name === state.activeSpaceName)
+    ?.projects?.find(p => p.name === state.activeProjectName) ?? null;
   const currentUser = state.user;
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -581,7 +648,7 @@ export function TaskDetail({ task, onClose, fullPage }) {
             <SectionLabel icon="git-branch">Development</SectionLabel>
             <div style={{ marginTop: 8, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
               {/* Branch row */}
-              <BranchRow task={task} />
+              <BranchRow task={task} activeProject={activeProject} workspaceId={state.workspaceId} />
               {task.pr && (
                 <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <Icon name={task.pr.state === 'merged' ? 'git-merge' : 'git-pull-request'} size={15} style={{ color: task.pr.state === 'merged' ? 'var(--s-merged-500)' : 'var(--s-open-500)', marginTop: 2 }} />
