@@ -208,6 +208,63 @@ npm run lint     # ESLint
 
 ---
 
+## Empty State (no spaces)
+
+When `state.spaces.length === 0`, `App.jsx` renders a CTA instead of the board/views. The "+ New space" button triggers the sidebar's add-space dialog via `document.querySelector('[data-add-space]').click()`. The sidebar button carries the `data-add-space` attribute.
+
+---
+
+## Integrations
+
+Only **GitHub** and **GitLab** are supported and wired to real OAuth flows. All other integrations (Slack, Linear, Figma, Jira, Webhooks) are listed as **Coming soon** in `SettingsView.jsx` — they are dimmed and their Connect buttons are disabled. Do not wire these up until the backend supports them.
+
+---
+
+## Command Palette
+
+Triggered by `⌘K`. Static actions defined in `Shell.jsx` → `CommandPalette` → `staticItems`:
+
+| Action | Shortcut |
+|--------|----------|
+| Create task | `T` |
+| Create space | — (triggers `[data-add-space]` click) |
+| Open settings | — |
+| Go to Board | `G B` |
+| Go to List | `G L` |
+| Go to Calendar | `G C` |
+| Go to Timeline | `G T` |
+
+Tasks from `visibleTasks` are also searchable inline.
+
+---
+
+## Views — Built vs Coming Soon
+
+| View | Status |
+|------|--------|
+| Board (Kanban) | Built |
+| List | Built |
+| Calendar | Built |
+| Timeline (Gantt) | Built |
+| Table | Coming soon |
+| Docs | Coming soon |
+| Roadmap | Coming soon |
+
+Coming soon views are shown in the view picker with a "Soon" badge and are not clickable.
+
+---
+
+## Key UI Conventions
+
+- **My Tasks** (`MyTasksView`) filters by `state.user.name` — never hardcode an assignee name
+- **Reporter / comment avatar** in `TaskDetail` uses `state.user` — never hardcode a user name
+- **Share link** in `TaskDetail` uses `window.location.origin` — never hardcode a domain
+- **Billing** upgrade and cancel flows direct users to `support@openclick.dev` — no payment portal is wired yet
+- **Sessions** in Security settings load from API only — no hardcoded fallback devices
+- **Member emails** in Workspace settings use `m.email` from API — never construct fake emails
+
+---
+
 ## Things to Never Do
 
 - **Never use a router library** — navigation is state-driven via `dispatch({ type: A.SET_UI, ... })`
@@ -216,3 +273,5 @@ npm run lint     # ESLint
 - **Never store sensitive data** beyond what's in `client.js` — no tokens in component state
 - **Never construct the GitLab OAuth URL on the frontend** — always fetch it from `GET /auth/gitlab/url`
 - **Never use `window.opener.postMessage`** for OAuth popups — `noopener` is set; use `localStorage` + `storage` event instead
+- **Never hardcode user names, workspace names, or domain URLs** — always read from `state.user`, `state.workspace`, or `window.location.origin`
+- **Never add mock/demo data** to the UI — all content must come from real API state or be empty
