@@ -152,7 +152,7 @@ export function Sidebar({ collapsed, width, onLogout }) {
         <>
           <div style={{ padding: '14px 14px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="t-label">Spaces</span>
-            <button className="oc-btn oc-btn--ghost oc-btn--icon" style={{ height: 20, width: 20 }} onClick={() => { setNewSpaceName(''); setNewSpaceIcon('layers'); setNewSpaceColor('#6366f1'); setAddSpaceOpen(true); }}>
+            <button data-add-space className="oc-btn oc-btn--ghost oc-btn--icon" style={{ height: 20, width: 20 }} onClick={() => { setNewSpaceName(''); setNewSpaceIcon('layers'); setNewSpaceColor('#6366f1'); setAddSpaceOpen(true); }}>
               <Icon name="plus" size={12} />
             </button>
           </div>

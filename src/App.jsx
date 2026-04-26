@@ -102,13 +102,36 @@ function AppInner({ onLogout }) {
           theme={tweaks.theme}
           onToggleTheme={() => setKey('theme', tweaks.theme === 'dark' ? 'light' : 'dark')}
         />
-        <ProjectHeader view={ui.view} onViewChange={v => dispatch({ type: A.SET_UI, payload: { view: v } })} />
-        {hasFilters && <FilterBar />}
-
-        {ui.view === 'board'    && <BoardView />}
-        {ui.view === 'list'     && <ListView />}
-        {ui.view === 'calendar' && <CalendarView />}
-        {ui.view === 'gantt'    && <GanttView />}
+        {state.spaces.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--fg-muted)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 'var(--r-xl)', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 'var(--fs-15)', fontWeight: 600, color: 'var(--fg)', marginBottom: 4 }}>Create your first space</div>
+              <div style={{ fontSize: 'var(--fs-13)' }}>Spaces help you organise projects and tasks across your workspace.</div>
+            </div>
+            <button
+              className="oc-btn oc-btn--primary"
+              style={{ marginTop: 4 }}
+              onClick={() => {
+                const el = document.querySelector('[data-add-space]');
+                if (el) el.click();
+              }}
+            >
+              + New space
+            </button>
+          </div>
+        ) : (
+          <>
+            <ProjectHeader view={ui.view} onViewChange={v => dispatch({ type: A.SET_UI, payload: { view: v } })} />
+            {hasFilters && <FilterBar />}
+            {ui.view === 'board'    && <BoardView />}
+            {ui.view === 'list'     && <ListView />}
+            {ui.view === 'calendar' && <CalendarView />}
+            {ui.view === 'gantt'    && <GanttView />}
+          </>
+        )}
       </div>
 
       {/* Task detail overlay */}
@@ -147,28 +170,6 @@ function AppInner({ onLogout }) {
       {ui.sidePanel === 'mytasks'       && <MyTasksView onClose={() => dispatch({ type: A.SET_UI, payload: { sidePanel: null } })} />}
       {ui.sidePanel === 'activity'      && <ActivityView onClose={() => dispatch({ type: A.SET_UI, payload: { sidePanel: null } })} />}
 
-      {/* Demo hint button */}
-      {!openTask && !ui.cmdOpen && !ui.newTaskOpen && (
-        <button
-          onClick={() => dispatch({ type: A.SET_UI, payload: { openTaskId: 'ORB-419' } })}
-          style={{
-            position: 'absolute', bottom: 16, left: tweaks.sidebarCollapsed ? 72 : tweaks.sidebarWidth + 16,
-            zIndex: 20,
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '0 12px', height: 32,
-            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-            borderRadius: 'var(--r-md)', color: 'var(--fg-muted)',
-            fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)',
-            cursor: 'pointer', boxShadow: 'var(--shadow-sm)',
-            transition: 'left var(--dur-base) var(--ease-out)',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--fg)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--fg-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-        >
-          <Icon name="maximize-2" size={12} /> Open task detail
-          <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)', fontSize: 10 }}>ORB-419</span>
-        </button>
-      )}
     </div>
   );
 }
