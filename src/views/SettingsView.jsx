@@ -603,10 +603,21 @@ function NotificationsSection() {
 }
 
 // ─── Integrations section ─────────────────────────────────────────────────────
+const PROVIDER_META = {
+  github: { name: 'GitHub', icon: 'github',     desc: 'Link PRs and commits to tasks' },
+  gitlab: { name: 'GitLab', icon: 'git-branch', desc: 'Link merge requests to tasks' },
+};
+
 const INTEGRATIONS_FALLBACK = [
-  { id: 'github', name: 'GitHub', icon: 'github',     desc: 'Link PRs and commits to tasks', connected: false },
-  { id: 'gitlab', name: 'GitLab', icon: 'git-branch', desc: 'Link merge requests to tasks',   connected: false },
+  { id: 'github', ...PROVIDER_META.github, connected: false },
+  { id: 'gitlab', ...PROVIDER_META.gitlab, connected: false },
 ];
+
+function normalizeIntegration(it) {
+  const provider = it.provider ?? it.id;
+  const meta = PROVIDER_META[provider] ?? {};
+  return { ...meta, ...it, id: provider };
+}
 
 const COMING_SOON_INTEGRATIONS = [
   { id: 'slack',    name: 'Slack',    icon: 'slack',      desc: 'Get task updates in Slack' },
@@ -624,8 +635,9 @@ function IntegrationsSection() {
 
   function loadList(wsId) {
     integrationsApi.list(wsId).then(data => {
-      const arr = Array.isArray(data) ? data : (data.integrations ?? []);
-      if (arr.length) setList(arr);
+      const raw = Array.isArray(data) ? data : (data.integrations ?? []);
+      const known = raw.filter(it => PROVIDER_META[it.provider ?? it.id]);
+      if (known.length) setList(known.map(normalizeIntegration));
     }).catch(() => {});
   }
 
