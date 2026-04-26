@@ -23,10 +23,11 @@ const PRIORITY_COLOR = {
 export function MyTasksView({ onClose }) {
   const { state, dispatch } = useApp();
   const [collapsed, setCollapsed] = useState({});
+  const myName = state.user?.name ?? '';
 
   const myTasks = useMemo(
-    () => state.tasks.filter(t => t.assignees.includes('Maya Chen')),
-    [state.tasks]
+    () => state.tasks.filter(t => myName && t.assignees.includes(myName)),
+    [state.tasks, myName]
   );
 
   const grouped = useMemo(
@@ -96,7 +97,7 @@ export function MyTasksView({ onClose }) {
             <div style={{ padding: 48, textAlign: 'center' }}>
               <Icon name="bookmark" size={36} style={{ color: 'var(--fg-subtle)', marginBottom: 12 }} />
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-14)', color: 'var(--fg-muted)', marginBottom: 4 }}>No tasks assigned to you</div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}>Tasks assigned to Maya Chen will appear here</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}>Tasks assigned to you will appear here</div>
             </div>
           ) : (
             grouped.map(group => (

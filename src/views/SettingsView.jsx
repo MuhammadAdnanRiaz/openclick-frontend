@@ -326,8 +326,8 @@ function WorkspaceSection() {
         <Field label="Workspace name">
           <Input value={wsName} onChange={setWsName} />
         </Field>
-        <Field label="Workspace URL" hint="Cannot be changed">
-          <Input value="orbital.openclick.app" disabled />
+        <Field label="Workspace ID" hint="Cannot be changed">
+          <Input value={workspaceId ?? '—'} disabled />
         </Field>
       </Section>
 
@@ -344,7 +344,7 @@ function WorkspaceSection() {
               <Avatar name={m.name} size={28} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 500, color: 'var(--fg)' }}>{m.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-sans)' }}>{m.name.toLowerCase().replace(' ', '.')}@orbital.dev</div>
+                <div style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-sans)' }}>{m.email ?? m.role}</div>
               </div>
               <select
                 value={m.role}
@@ -604,13 +604,16 @@ function NotificationsSection() {
 
 // ─── Integrations section ─────────────────────────────────────────────────────
 const INTEGRATIONS_FALLBACK = [
-  { id: 'github',   name: 'GitHub',   icon: 'github',       desc: 'Link PRs and commits to tasks', connected: false },
-  { id: 'gitlab',   name: 'GitLab',   icon: 'git-branch',   desc: 'Link merge requests to tasks',   connected: false },
-  { id: 'slack',    name: 'Slack',    icon: 'slack',        desc: 'Get task updates in Slack',      connected: false },
-  { id: 'linear',   name: 'Linear',   icon: 'zap',          desc: 'Sync issues bidirectionally',   connected: false },
-  { id: 'figma',    name: 'Figma',    icon: 'figma',        desc: 'Attach designs to tasks',        connected: false },
-  { id: 'jira',     name: 'Jira',     icon: 'briefcase',    desc: 'Import from Jira projects',      connected: false },
-  { id: 'webhooks', name: 'Webhooks', icon: 'webhook',      desc: 'Send events to any endpoint',    connected: false },
+  { id: 'github', name: 'GitHub', icon: 'github',     desc: 'Link PRs and commits to tasks', connected: false },
+  { id: 'gitlab', name: 'GitLab', icon: 'git-branch', desc: 'Link merge requests to tasks',   connected: false },
+];
+
+const COMING_SOON_INTEGRATIONS = [
+  { id: 'slack',    name: 'Slack',    icon: 'slack',      desc: 'Get task updates in Slack' },
+  { id: 'linear',   name: 'Linear',   icon: 'zap',        desc: 'Sync issues bidirectionally' },
+  { id: 'figma',    name: 'Figma',    icon: 'figma',      desc: 'Attach designs to tasks' },
+  { id: 'jira',     name: 'Jira',     icon: 'briefcase',  desc: 'Import from Jira projects' },
+  { id: 'webhooks', name: 'Webhooks', icon: 'webhook',    desc: 'Send events to any endpoint' },
 ];
 
 function IntegrationsSection() {
@@ -714,25 +717,41 @@ function IntegrationsSection() {
             </button>
           </div>
         ))}
+        {COMING_SOON_INTEGRATIONS.map(it => (
+          <div
+            key={it.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+              background: 'var(--bg-card)', border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-lg)', opacity: 0.5,
+            }}
+          >
+            <div style={{ width: 36, height: 36, borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name={it.icon} size={18} style={{ color: 'var(--fg-muted)' }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-13)', fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {it.name}
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg-subtle)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xs)', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Soon</span>
+              </div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--fg-subtle)', marginTop: 2 }}>{it.desc}</div>
+            </div>
+            <button className="oc-btn oc-btn--secondary" disabled style={{ flexShrink: 0, opacity: 0.5 }}>Connect</button>
+          </div>
+        ))}
       </div>
     </Section>
   );
 }
 
 // ─── Security section ─────────────────────────────────────────────────────────
-const SESSIONS = [
-  { id: 1, device: 'MacBook Pro — Chrome', location: 'San Francisco, CA', lastSeen: 'Now', current: true },
-  { id: 2, device: 'iPhone 15 Pro — Safari', location: 'San Francisco, CA', lastSeen: '2 hours ago', current: false },
-  { id: 3, device: 'Windows PC — Edge', location: 'Chicago, IL', lastSeen: '3 days ago', current: false },
-];
-
 function SecuritySection() {
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [show, setShow] = useState(false);
   const [twofa, setTwofa] = useState(false);
-  const [sessions, setSessions] = useState(SESSIONS);
+  const [sessions, setSessions] = useState([]);
   const [pwUpdated, setPwUpdated] = useState(false);
   const [pwError, setPwError] = useState('');
   const [pwSaving, setPwSaving] = useState(false);

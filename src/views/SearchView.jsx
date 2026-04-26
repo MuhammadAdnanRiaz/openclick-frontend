@@ -3,12 +3,7 @@ import { Icon, Avatar, StatusChip } from '../components/primitives.jsx';
 import { useApp, A } from '../store/AppContext.jsx';
 import * as searchApi from '../api/search.js';
 
-const RECENT = [
-  { icon: 'hash', label: 'ORB-419 · Scheduler core implementation', type: 'task', taskId: 'ORB-419' },
-  { icon: 'hash', label: 'ORB-412 · Realtime event bus', type: 'task', taskId: 'ORB-412' },
-  { icon: 'tag', label: 'performance', type: 'tag' },
-  { icon: 'user', label: 'Dev Patel', type: 'member' },
-];
+const RECENT = [];
 
 const QUICK_ACTIONS = [
   { icon: 'plus-circle', label: 'Create new task', kbd: 'T', action: 'create' },
@@ -223,7 +218,7 @@ export function SearchView({ onClose }) {
                       key={m}
                       iconNode={<Avatar name={m} size={20} />}
                       label={m}
-                      right={<span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--fg-subtle)' }}>{m.toLowerCase().replace(' ', '.')}@orbital.dev</span>}
+                      right={null}
                       onClick={onClose}
                     />
                   ))}

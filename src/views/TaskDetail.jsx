@@ -255,13 +255,14 @@ function ActivityEvent({ icon, text, when, color }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TaskDetail({ task, onClose, fullPage }) {
-  const { dispatch, memberNames } = useApp();
+  const { state, dispatch, memberNames } = useApp();
+  const currentUser = state.user;
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedBranch, setCopiedBranch] = useState(false);
 
   function copyLink() {
-    navigator.clipboard.writeText(`https://orbital.openclick.app/task/${task.id}`).catch(() => {});
+    navigator.clipboard.writeText(`${window.location.origin}/?task=${task.id}`).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -558,7 +559,7 @@ export function TaskDetail({ task, onClose, fullPage }) {
               {/* Composer */}
               <div style={{ marginTop: 4, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', padding: 10 }}>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <Avatar name="Maya Chen" size={26} />
+                  <Avatar name={currentUser?.name ?? '?'} size={26} />
                   <div style={{ flex: 1 }}>
                     <textarea
                       value={comment}
@@ -618,8 +619,8 @@ export function TaskDetail({ task, onClose, fullPage }) {
           </MetaRow>
           <MetaRow label="Reporter">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Avatar name="Maya Chen" size={18} />
-              <span style={{ fontSize: 'var(--fs-12)' }}>Maya Chen</span>
+              <Avatar name={currentUser?.name ?? '?'} size={18} />
+              <span style={{ fontSize: 'var(--fs-12)' }}>{currentUser?.name ?? '—'}</span>
             </span>
           </MetaRow>
           <MetaRow label="Due">

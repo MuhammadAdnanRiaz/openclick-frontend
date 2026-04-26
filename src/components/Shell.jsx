@@ -770,6 +770,7 @@ export function CommandPalette({ open, onClose }) {
 
   const staticItems = [
     { g: 'Actions', icon: 'plus-circle',     label: 'Create task',         kbd: 'T',   action: () => dispatch({ type: A.SET_UI, payload: { newTaskOpen: true, newTaskInitialStatus: 'open' } }) },
+    { g: 'Actions', icon: 'layers',          label: 'Create space',        kbd: '',    action: () => { onClose(); setTimeout(() => { const el = document.querySelector('[data-add-space]'); if (el) el.click(); }, 80); } },
     { g: 'Actions', icon: 'settings',        label: 'Open settings',       kbd: '',    action: () => dispatch({ type: A.SET_UI, payload: { settingsOpen: true, settingsSection: 'profile' } }) },
     { g: 'Navigate', icon: 'kanban',         label: 'Go to Board view',    kbd: 'G B', action: () => dispatch({ type: A.SET_UI, payload: { view: 'board' } }) },
     { g: 'Navigate', icon: 'list',           label: 'Go to List view',     kbd: 'G L', action: () => dispatch({ type: A.SET_UI, payload: { view: 'list' } }) },
