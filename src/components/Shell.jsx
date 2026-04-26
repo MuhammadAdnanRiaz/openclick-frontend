@@ -631,10 +631,19 @@ function AddMenuItem({ icon, label, onClick }) {
 function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo, onUnlinkRepo, onRename, onDelete }) {
   const [hover, setHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(label);
+  const btnRef = useRef(null);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
+
+  function openMenu(e) {
+    e.stopPropagation();
+    const rect = btnRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    setMenuOpen(o => !o);
+  }
 
   function startRename() {
     setMenuOpen(false);
@@ -699,10 +708,11 @@ function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLin
       </button>
 
       {(hover || menuOpen) && (
-        <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+        <>
           <button
-            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
-            style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: menuOpen ? 'var(--bg-press)' : 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: 'var(--fg-subtle)' }}
+            ref={btnRef}
+            onClick={openMenu}
+            style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', background: menuOpen ? 'var(--bg-press)' : 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: 'var(--fg-subtle)', flexShrink: 0 }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-press)'}
             onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = 'transparent'; }}
           >
@@ -710,7 +720,7 @@ function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLin
           </button>
 
           {menuOpen && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 400, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 176, padding: 4, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
+            <div ref={menuRef} style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 1000, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 188, padding: 4, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
 
               {repoFullName && (
                 <div style={{ padding: '6px 10px 4px', fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 4 }}>
@@ -756,7 +766,7 @@ function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLin
               </button>
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
