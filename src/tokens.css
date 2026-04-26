@@ -349,3 +349,10 @@ html, body {
   from { transform: translateX(16px); opacity: 0; }
   to   { transform: translateX(0); opacity: 1; }
 }
+@keyframes oc-shimmer {
+  from { opacity: 1; }
+  to   { opacity: 0.4; }
+}
+.oc-shimmer {
+  animation: oc-shimmer 900ms ease-in-out infinite alternate;
+}

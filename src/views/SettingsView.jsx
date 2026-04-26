@@ -631,6 +631,7 @@ function IntegrationsSection() {
   const { state } = useApp();
   const workspaceId = state.workspaceId;
   const [list, setList] = useState(INTEGRATIONS_FALLBACK);
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null); // { provider, success }
 
   function loadList(wsId) {
@@ -638,7 +639,7 @@ function IntegrationsSection() {
       const raw = Array.isArray(data) ? data : (data.integrations ?? []);
       const known = raw.filter(it => PROVIDER_META[it.provider ?? it.id]);
       if (known.length) setList(known.map(normalizeIntegration));
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -700,7 +701,18 @@ function IntegrationsSection() {
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {list.map(it => (
+        {loading ? (
+          [0, 1].map(i => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', flexShrink: 0 }} className="oc-shimmer" />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ width: 80, height: 12, borderRadius: 'var(--r-sm)', background: 'var(--bg-elevated)' }} className="oc-shimmer" />
+                <div style={{ width: 180, height: 10, borderRadius: 'var(--r-sm)', background: 'var(--bg-elevated)' }} className="oc-shimmer" />
+              </div>
+              <div style={{ width: 76, height: 30, borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', flexShrink: 0 }} className="oc-shimmer" />
+            </div>
+          ))
+        ) : list.map(it => (
           <div
             key={it.id}
             style={{
