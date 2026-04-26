@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon, Avatar, AvatarStack } from './primitives.jsx';
-import { PROJECT, VIEWS } from '../data.js';
+import { VIEWS } from '../data.js';
 import { useApp, A } from '../store/AppContext.jsx';
 import * as spacesApi from '../api/spaces.js';
 import * as workspaceApi from '../api/workspace.js';
@@ -617,13 +617,10 @@ export function ProjectHeader({ view, onViewChange }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 className="t-h1" style={{ margin: 0 }}>{PROJECT.name}</h1>
-            <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>
-              <Icon name="git-branch" size={10} style={{ marginRight: 3, verticalAlign: -1 }} />orbital/runtime
-            </span>
+            <h1 className="t-h1" style={{ margin: 0 }}>{state.workspace?.name ?? 'Workspace'}</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-            <span className="t-small">{visibleTasks.length} tasks · ends May 03</span>
+            <span className="t-small">{visibleTasks.length} tasks</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 120, height: 4, background: 'var(--bg-card)', borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: `${progress * 100}%`, height: '100%', background: 'var(--accent)', borderRadius: 999, transition: 'width 300ms' }} />
@@ -866,7 +863,7 @@ export function CommandPalette({ open, onClose }) {
         <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 12, fontSize: 'var(--fs-11)', color: 'var(--fg-subtle)' }}>
           <span><span className="oc-kbd">↑</span> <span className="oc-kbd">↓</span> navigate</span>
           <span><span className="oc-kbd">↵</span> select</span>
-          <span style={{ marginLeft: 'auto' }}>OpenClick · v0.8</span>
+          <span style={{ marginLeft: 'auto' }}>OpenClick</span>
         </div>
       </div>
     </div>
@@ -963,7 +960,7 @@ function BreadcrumbItem({ label, items, renderItem, active }) {
 function MoreMenu({ tasks }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [projectName, setProjectName] = useState('Runtime · v0.8');
+  const [projectName, setProjectName] = useState('');
   const [toast, setToast] = useState(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const ref = useRef(null);
@@ -980,7 +977,7 @@ function MoreMenu({ tasks }) {
     const rows = tasks.map(t => [t.id, t.title, t.status, t.priority, t.assignees.join('; '), t.due, t.tags.join('; ')]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: 'runtime-v0.8.csv' });
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'tasks.csv' });
     a.click();
     URL.revokeObjectURL(url);
     setOpen(false);
