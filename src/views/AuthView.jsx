@@ -350,11 +350,27 @@ function BrandPanel() {
   );
 }
 
-// ─── GitHub OAuth redirect ────────────────────────────────────────────────────
+function GitLabIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.82 2a.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.49h8.1l2.44-7.51a.42.42 0 01.11-.18.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.51 1.22 3.78a.84.84 0 01-.3.94z"/>
+    </svg>
+  );
+}
+
+// ─── OAuth redirects ──────────────────────────────────────────────────────────
 function redirectToGitHub() {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
   if (!clientId) { alert('GitHub OAuth is not configured.'); return; }
   window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&state=auth`;
+}
+
+function redirectToGitLab() {
+  const clientId = import.meta.env.VITE_GITLAB_CLIENT_ID;
+  if (!clientId) { alert('GitLab OAuth is not configured.'); return; }
+  const backendUrl = import.meta.env.VITE_API_BASE_URL;
+  const redirectUri = encodeURIComponent(`${backendUrl}/auth/gitlab/callback`);
+  window.location.href = `https://gitlab.com/oauth/authorize?client_id=${clientId}&response_type=code&scope=read_user&redirect_uri=${redirectUri}`;
 }
 
 // ─── Login screen ─────────────────────────────────────────────────────────────
@@ -392,7 +408,10 @@ function LoginForm({ onAuth, onForgot, onSignup }) {
         Sign in to your workspace
       </p>
 
-      <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+        <OAuthButton provider="Continue with GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
+      </div>
 
       <AuthDivider />
 
@@ -485,7 +504,10 @@ function SignupForm({ onAuth, onLogin }) {
         Start managing projects the git-native way.
       </p>
 
-      <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+        <OAuthButton provider="Continue with GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
+      </div>
 
       <AuthDivider />
 

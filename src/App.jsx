@@ -262,15 +262,15 @@ export default function App() {
     window.close();
   }, []);
 
-  // Handle GitHub login callback — detect ?github_auth=<base64_payload>
+  // Handle OAuth login callbacks — detect ?github_auth= or ?gitlab_auth=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const githubAuth = params.get('github_auth');
-    if (!githubAuth) return;
+    const payload = params.get('github_auth') ?? params.get('gitlab_auth');
+    if (!payload) return;
     window.history.replaceState({}, '', window.location.pathname);
-    if (githubAuth === 'error') return;
+    if (payload === 'error') return;
     try {
-      const data = JSON.parse(atob(githubAuth));
+      const data = JSON.parse(atob(payload));
       storeAuth(data);
       setAuthData({ user: data.user, workspaceId: data.workspace?.id ?? null });
     } catch {
