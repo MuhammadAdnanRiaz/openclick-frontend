@@ -355,7 +355,7 @@ function redirectToGitHub() {
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
   if (!clientId) { alert('GitHub OAuth is not configured.'); return; }
   const callbackUrl = `${import.meta.env.VITE_API_BASE_URL}/auth/github/callback`;
-  window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&redirect_uri=${encodeURIComponent(callbackUrl)}`;
+  window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&state=auth&redirect_uri=${encodeURIComponent(callbackUrl)}`;
 }
 
 // ─── Login screen ─────────────────────────────────────────────────────────────
