@@ -31,7 +31,7 @@ export function getStoredAuth() {
   const token       = localStorage.getItem(KEYS.ACCESS_TOKEN);
   const user        = JSON.parse(localStorage.getItem(KEYS.USER) || 'null');
   const workspaceId = localStorage.getItem(KEYS.WORKSPACE_ID);
-  if (token && user && workspaceId) return { user, workspaceId };
+  if (token && user) return { user, workspaceId };
   return null;
 }
 
