@@ -408,9 +408,9 @@ function LoginForm({ onAuth, onForgot, onSignup }) {
         Sign in to your workspace
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
-        <OAuthButton provider="Continue with GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <OAuthButton provider="GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+        <OAuthButton provider="GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
       </div>
 
       <AuthDivider />
@@ -504,9 +504,9 @@ function SignupForm({ onAuth, onLogin }) {
         Start managing projects the git-native way.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <OAuthButton provider="Continue with GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
-        <OAuthButton provider="Continue with GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <OAuthButton provider="GitHub" icon={<GitHubIcon />} onClick={redirectToGitHub} />
+        <OAuthButton provider="GitLab" icon={<GitLabIcon />} onClick={redirectToGitLab} />
       </div>
 
       <AuthDivider />
