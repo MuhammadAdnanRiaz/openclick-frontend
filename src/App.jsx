@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AppProvider, useApp, A } from './store/AppContext.jsx';
+import { ToastProvider } from './store/ToastContext.jsx';
 import { Sidebar, Topbar, ProjectHeader, CommandPalette } from './components/Shell.jsx';
 import { BoardView } from './views/BoardView.jsx';
 import { ListView } from './views/ListView.jsx';
@@ -299,8 +300,10 @@ export default function App() {
   }
 
   return (
-    <AppProvider authData={authData}>
-      <AppInner onLogout={handleLogout} />
-    </AppProvider>
+    <ToastProvider>
+      <AppProvider authData={authData}>
+        <AppInner onLogout={handleLogout} />
+      </AppProvider>
+    </ToastProvider>
   );
 }

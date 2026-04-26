@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Icon, Avatar, AvatarStack } from './primitives.jsx';
 import { VIEWS } from '../data.js';
 import { useApp, A } from '../store/AppContext.jsx';
+import { useToast } from '../store/ToastContext.jsx';
 import * as spacesApi from '../api/spaces.js';
 import * as workspaceApi from '../api/workspace.js';
 import * as integrationsApi from '../api/integrations.js';
@@ -343,6 +344,7 @@ function SideItem({ icon, label, kbd, badge, active, collapsed, pad = 8, onClick
 }
 
 function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
+  const toast = useToast();
   const [repos, setRepos] = useState(null);
   const [q, setQ] = useState('');
   const [linking, setLinking] = useState(false);
@@ -366,7 +368,10 @@ function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
         repoUrl: repo.url,
       });
       onLink(updated);
-    } catch {}
+      toast(`Linked to ${repo.fullName}`, 'success');
+    } catch {
+      toast('Failed to link repository', 'error');
+    }
     setLinking(false);
     onClose();
   }
@@ -379,7 +384,10 @@ function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
         repoUrl: null,
       });
       onLink(updated);
-    } catch {}
+      toast('Repository unlinked', 'success');
+    } catch {
+      toast('Failed to unlink repository', 'error');
+    }
     onClose();
   }
 
@@ -437,6 +445,7 @@ function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
 
 function SpaceTree({ space, expanded, workspaceId }) {
   const { dispatch } = useApp();
+  const toast = useToast();
   const [open, setOpen] = useState(expanded);
   const [hover, setHover] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -550,22 +559,29 @@ function SpaceTree({ space, expanded, workspaceId }) {
                 try {
                   const updated = await spacesApi.updateProject(workspaceId, space.id, p.id, { repoProvider: null, repoFullName: null, repoUrl: null });
                   setProjects(ps => ps.map(x => x.id === p.id ? { ...x, ...updated, spaceId: space.id } : x));
-                } catch {}
+                  toast('Repository unlinked', 'success');
+                } catch {
+                  toast('Failed to unlink repository', 'error');
+                }
               }}
               onRename={async (newName) => {
                 setProjects(ps => ps.map(x => x.id === p.id ? { ...x, name: newName } : x));
                 try {
                   await spacesApi.updateProject(workspaceId, space.id, p.id, { name: newName });
+                  toast(`Renamed to "${newName}"`, 'success');
                 } catch {
                   setProjects(ps => ps.map(x => x.id === p.id ? { ...x, name: p.name } : x));
+                  toast('Failed to rename project', 'error');
                 }
               }}
               onDelete={async () => {
                 setProjects(ps => ps.filter(x => x.id !== p.id));
                 try {
                   await spacesApi.deleteProject(workspaceId, space.id, p.id);
+                  toast(`"${p.name}" deleted`, 'info');
                 } catch {
                   setProjects(ps => [...ps, p]);
+                  toast('Failed to delete project', 'error');
                 }
               }}
             />

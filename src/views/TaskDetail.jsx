@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp, A } from '../store/AppContext.jsx';
+import { useToast } from '../store/ToastContext.jsx';
 import { Icon, Avatar, AvatarStack, StatusChip, Priority, PRPill } from '../components/primitives.jsx';
 import { STATUSES } from '../data.js';
 
@@ -259,6 +260,7 @@ const PROVIDER_LABEL = { github: 'GitHub', gitlab: 'GitLab' };
 
 function BranchRow({ task, activeProject, workspaceId }) {
   const { dispatch } = useApp();
+  const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(task.branch ?? '');
   const [saving, setSaving] = useState(false);
@@ -282,8 +284,11 @@ function BranchRow({ task, activeProject, workspaceId }) {
         })
       );
       dispatch({ type: A.TASK_UPDATE, payload: { id: task.id, patch: { branch: updated.branch } } });
+      toast(`Branch created: ${updated.branch}`, 'success');
     } catch (err) {
-      setError(err.message ?? 'Branch creation failed');
+      const msg = err.message ?? 'Branch creation failed';
+      setError(msg);
+      toast(msg, 'error');
     }
     setCreating(false);
   }
