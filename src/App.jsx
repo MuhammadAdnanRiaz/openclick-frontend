@@ -125,7 +125,7 @@ function AppInner({ onLogout }) {
         ) : (
           <>
             <ProjectHeader view={ui.view} onViewChange={v => dispatch({ type: A.SET_UI, payload: { view: v } })} />
-            {hasFilters && <FilterBar />}
+            {!!hasFilters && <FilterBar />}
             {ui.view === 'board'    && <BoardView />}
             {ui.view === 'list'     && <ListView />}
             {ui.view === 'calendar' && <CalendarView />}

@@ -436,6 +436,7 @@ function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
 }
 
 function SpaceTree({ space, expanded, workspaceId }) {
+  const { dispatch } = useApp();
   const [open, setOpen] = useState(expanded);
   const [hover, setHover] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -540,8 +541,17 @@ function SpaceTree({ space, expanded, workspaceId }) {
               repoFullName={p.repoFullName}
               repoProvider={p.repoProvider}
               active={activeProject === (p.id ?? p)}
-              onClick={() => setActiveProject(p.id ?? p)}
+              onClick={() => {
+                setActiveProject(p.id ?? p);
+                dispatch({ type: A.SET_ACTIVE_PROJECT, payload: { spaceName: space.name, projectName: p.name ?? p } });
+              }}
               onLinkRepo={() => setRepoPickerProject({ ...p, spaceId: space.id })}
+              onUnlinkRepo={async () => {
+                try {
+                  const updated = await spacesApi.updateProject(workspaceId, space.id, p.id, { repoProvider: null, repoFullName: null, repoUrl: null });
+                  setProjects(ps => ps.map(x => x.id === p.id ? { ...x, ...updated, spaceId: space.id } : x));
+                } catch {}
+              }}
             />
           ))}
           {pages.map(pg => (
@@ -602,24 +612,29 @@ function AddMenuItem({ icon, label, onClick }) {
   );
 }
 
-function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo }) {
+function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo, onUnlinkRepo }) {
   const [hover, setHover] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  useClickOutside(menuRef, () => setMenuOpen(false));
+
   return (
     <div
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', alignItems: 'center', borderRadius: 'var(--r-md)', background: active ? 'var(--bg-selected)' : (hover ? 'var(--bg-hover)' : 'transparent') }}
+      style={{ display: 'flex', alignItems: 'center', borderRadius: 'var(--r-md)', background: active ? 'var(--bg-selected)' : (hover ? 'var(--bg-hover)' : 'transparent'), position: 'relative' }}
     >
       <button
         onClick={onClick}
         style={{
-          flex: 1, height: 26, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 8,
+          flex: 1, height: 26, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6,
           background: 'transparent', border: 'none',
           color: active ? 'var(--accent-text)' : 'var(--fg-muted)',
           cursor: 'pointer', fontFamily: 'var(--font-sans)',
           fontSize: 'var(--fs-12)', fontWeight: active ? 500 : 400, textAlign: 'left',
+          minWidth: 0, overflow: 'hidden',
         }}
       >
-        <Icon name="hash" size={12} strokeWidth={2} />
+        <Icon name="hash" size={12} strokeWidth={2} style={{ flexShrink: 0 }} />
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
         {repoFullName && (
           <Icon
@@ -630,16 +645,43 @@ function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLin
           />
         )}
       </button>
-      {hover && onLinkRepo && (
-        <button
-          onClick={e => { e.stopPropagation(); onLinkRepo(); }}
-          title={repoFullName ? `Linked: ${repoFullName}` : 'Link repository'}
-          style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: repoFullName ? 'var(--accent)' : 'var(--fg-subtle)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-press)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        >
-          <Icon name="link" size={11} />
-        </button>
+      {(hover || menuOpen) && (
+        <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
+            style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: menuOpen ? 'var(--bg-press)' : 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: 'var(--fg-subtle)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-press)'}
+            onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Icon name="more-horizontal" size={12} />
+          </button>
+          {menuOpen && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 2, zIndex: 400, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)', minWidth: 170, padding: 4, animation: 'oc-scale-in 140ms var(--ease-out)' }}>
+              {repoFullName && (
+                <div style={{ padding: '6px 10px 4px', fontFamily: 'var(--font-sans)', fontSize: 10, color: 'var(--fg-subtle)', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 4 }}>
+                  <Icon name={repoProvider === 'github' ? 'github' : 'git-branch'} size={11} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repoFullName}</span>
+                </div>
+              )}
+              <button onClick={() => { setMenuOpen(false); onLinkRepo?.(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg)', textAlign: 'left' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Icon name="link" size={13} style={{ color: 'var(--fg-muted)' }} />
+                {repoFullName ? 'Change repository' : 'Link repository'}
+              </button>
+              {repoFullName && (
+                <button onClick={() => { setMenuOpen(false); onUnlinkRepo?.(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 'none', borderRadius: 'var(--r-sm)', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--s-blocked-500)', textAlign: 'left' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Icon name="link-2-off" size={13} />
+                  Unlink repository
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -752,7 +794,15 @@ export function ProjectHeader({ view, onViewChange }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 className="t-h1" style={{ margin: 0 }}>{state.workspace?.name ?? 'Workspace'}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <h1 className="t-h1" style={{ margin: 0 }}>{state.activeSpaceName ?? state.workspace?.name ?? 'Workspace'}</h1>
+              {state.activeProjectName && (
+                <>
+                  <Icon name="chevron-right" size={14} style={{ color: 'var(--fg-subtle)', flexShrink: 0 }} />
+                  <span className="t-h1" style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>{state.activeProjectName}</span>
+                </>
+              )}
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
             <span className="t-small">{visibleTasks.length} tasks</span>

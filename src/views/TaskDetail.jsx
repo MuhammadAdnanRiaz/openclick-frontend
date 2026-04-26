@@ -252,6 +252,78 @@ function ActivityEvent({ icon, text, when, color }) {
   );
 }
 
+// ─── Branch row sub-component ─────────────────────────────────────────────────
+
+function BranchRow({ task }) {
+  const { dispatch } = useApp();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(task.branch ?? '');
+  const [saving, setSaving] = useState(false);
+  const [copiedBranch, setCopiedBranch] = useState(false);
+
+  async function save() {
+    const trimmed = value.trim();
+    if (trimmed === (task.branch ?? '')) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      dispatch({ type: A.TASK_UPDATE, payload: { id: task.id, patch: { branch: trimmed || null } } });
+    } catch {}
+    setSaving(false);
+    setEditing(false);
+  }
+
+  function copyBranch() {
+    navigator.clipboard.writeText(task.branch).catch(() => {});
+    setCopiedBranch(true);
+    setTimeout(() => setCopiedBranch(false), 2000);
+  }
+
+  if (editing) {
+    return (
+      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="git-branch" size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <input
+          autoFocus
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setEditing(false); setValue(task.branch ?? ''); } }}
+          onBlur={save}
+          placeholder="feature/my-branch"
+          style={{ flex: 1, height: 28, padding: '0 8px', background: 'var(--bg-elevated)', border: '1px solid var(--accent)', borderRadius: 'var(--r-sm)', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-12)', color: 'var(--fg)' }}
+          disabled={saving}
+        />
+      </div>
+    );
+  }
+
+  if (task.branch) {
+    return (
+      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Icon name="git-branch" size={15} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <span className="t-mono" style={{ color: 'var(--fg)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.branch}</span>
+        <button className="oc-btn oc-btn--ghost oc-btn--sm" onClick={copyBranch} style={{ color: copiedBranch ? 'var(--s-done-500)' : undefined, flexShrink: 0 }}>
+          {copiedBranch ? <><Icon name="check" size={11} /> Copied</> : 'Copy'}
+        </button>
+        <button className="oc-btn oc-btn--ghost oc-btn--icon" onClick={() => { setValue(task.branch ?? ''); setEditing(true); }} title="Edit branch" style={{ width: 24, height: 24, flexShrink: 0 }}>
+          <Icon name="pencil" size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setValue(''); setEditing(true); }}
+      style={{ width: '100%', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-subtle)' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <Icon name="git-branch" size={15} style={{ color: 'var(--fg-faint)', flexShrink: 0 }} />
+      Add branch name…
+    </button>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TaskDetail({ task, onClose, fullPage }) {
@@ -259,18 +331,10 @@ export function TaskDetail({ task, onClose, fullPage }) {
   const currentUser = state.user;
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedBranch, setCopiedBranch] = useState(false);
-
   function copyLink() {
     navigator.clipboard.writeText(`${window.location.origin}/?task=${task.id}`).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  function copyBranch() {
-    navigator.clipboard.writeText(task.branch).catch(() => {});
-    setCopiedBranch(true);
-    setTimeout(() => setCopiedBranch(false), 2000);
   }
 
   function toggleFullPage() {
@@ -512,39 +576,25 @@ export function TaskDetail({ task, onClose, fullPage }) {
             </div>
           </div>
 
-          {/* Git panel */}
-          {(task.branch || task.pr) && (
-            <div style={{ marginTop: 22 }}>
-              <SectionLabel icon="git-branch">Development</SectionLabel>
-              <div style={{ marginTop: 8, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
-                {task.branch && (
-                  <div style={{ padding: '10px 14px', borderBottom: task.pr ? '1px solid var(--border-subtle)' : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Icon name="git-branch" size={15} style={{ color: 'var(--accent)' }} />
-                    <span className="t-mono" style={{ color: 'var(--fg)' }}>{task.branch}</span>
-                    <div style={{ flex: 1 }} />
-                    <button
-                      className="oc-btn oc-btn--secondary oc-btn--sm"
-                      onClick={copyBranch}
-                      style={{ color: copiedBranch ? 'var(--s-done-500)' : undefined }}
-                    >
-                      {copiedBranch ? <><Icon name="check" size={11} /> Copied</> : 'Copy'}
-                    </button>
-                  </div>
-                )}
-                {task.pr && (
-                  <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <Icon name={task.pr.state === 'merged' ? 'git-merge' : 'git-pull-request'} size={15} style={{ color: task.pr.state === 'merged' ? 'var(--s-merged-500)' : 'var(--s-open-500)', marginTop: 2 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>#{task.pr.id}</span>
-                        <PRPill id={task.pr.id} state={task.pr.state} />
-                      </div>
+          {/* Git / Development panel — always visible */}
+          <div style={{ marginTop: 22 }}>
+            <SectionLabel icon="git-branch">Development</SectionLabel>
+            <div style={{ marginTop: 8, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+              {/* Branch row */}
+              <BranchRow task={task} />
+              {task.pr && (
+                <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <Icon name={task.pr.state === 'merged' ? 'git-merge' : 'git-pull-request'} size={15} style={{ color: task.pr.state === 'merged' ? 'var(--s-merged-500)' : 'var(--s-open-500)', marginTop: 2 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span className="t-mono-sm" style={{ color: 'var(--fg-subtle)' }}>#{task.pr.id}</span>
+                      <PRPill id={task.pr.id} state={task.pr.state} />
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Activity */}
           <div style={{ marginTop: 22 }}>

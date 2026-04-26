@@ -19,6 +19,7 @@ export const A = {
   SPACE_ADD:      'SPACE_ADD',
   INIT_MEMBERS:   'INIT_MEMBERS',
   INIT_WORKSPACE: 'INIT_WORKSPACE',
+  SET_ACTIVE_PROJECT: 'SET_ACTIVE_PROJECT',
 };
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -28,6 +29,8 @@ function makeInitial(authData) {
     spaces: [],
     members: [],
     workspace: null,
+    activeSpaceName: null,
+    activeProjectName: null,
     loading: true,
     user: authData?.user ?? null,
     workspaceId: authData?.workspaceId ?? null,
@@ -109,6 +112,9 @@ function reducer(state, action) {
 
     case A.INIT_WORKSPACE:
       return { ...state, workspace: action.payload };
+
+    case A.SET_ACTIVE_PROJECT:
+      return { ...state, activeSpaceName: action.payload.spaceName, activeProjectName: action.payload.projectName };
 
     case A.TASK_CREATE_RAW: {
       return { ...state, tasks: [...state.tasks, action.payload] };
@@ -222,7 +228,7 @@ export function AppProvider({ children, authData }) {
 
   // API-aware dispatch — transparent to consumers
   const dispatch = useCallback(async (action) => {
-    const UI_ONLY = [A.SET_UI, A.SET_FILTER, A.SET_SORT, A.INIT_TASKS, A.SET_LOADING, A.INIT_SPACES, A.SPACE_ADD, A.INIT_MEMBERS, A.INIT_WORKSPACE];
+    const UI_ONLY = [A.SET_UI, A.SET_FILTER, A.SET_SORT, A.INIT_TASKS, A.SET_LOADING, A.INIT_SPACES, A.SPACE_ADD, A.INIT_MEMBERS, A.INIT_WORKSPACE, A.SET_ACTIVE_PROJECT];
     if (UI_ONLY.includes(action.type)) {
       rawDispatch(action);
       return;
