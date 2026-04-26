@@ -265,6 +265,35 @@ Coming soon views are shown in the view picker with a "Soon" badge and are not c
 
 ---
 
+## Repo ↔ Project Linking
+
+Each project in a space can be linked to a GitHub or GitLab repository. This is stored in the project record (`repoProvider`, `repoFullName`, `repoUrl`) and surfaced in the sidebar.
+
+### How it works
+
+1. **Link**: User clicks the link icon that appears on hover over a project in the sidebar → `RepoPickerModal` opens (in `Shell.jsx`)
+2. **Picker**: Fetches repos via `GET /workspaces/:id/integrations/repos` (all connected GitHub + GitLab repos combined)
+3. **Save**: Calls `PATCH /workspaces/:id/spaces/:spaceId/projects/:projectId` with `{ repoProvider, repoFullName, repoUrl }`
+4. **Indicator**: A small GitHub/GitLab icon appears beside the project name in the sidebar when linked
+5. **Unlink**: Picker footer shows "Unlink" button when a repo is already linked — sends null values for all three fields
+
+### Auto-link on project creation
+
+After a new project is created, `SpaceTree` immediately opens `RepoPickerModal` for the new project. User can skip by closing the modal.
+
+### State management
+
+- Project repo fields are loaded from the API on startup (backend includes them in space/project responses)
+- `SpaceTree` manages `projects` as local state — initialized from `space.projects`, updated via `setProjects` after link/unlink
+- Global `state.spaces` is NOT updated when a repo is linked within a session; it refreshes on next page load
+- `RepoPickerModal` calls `onLink(updatedProject)` callback to sync local SpaceTree state
+
+### Prerequisite
+
+User must first connect GitHub or GitLab in Settings → Integrations. If no integration is connected, the picker shows an empty state with instructions.
+
+---
+
 ## Things to Never Do
 
 - **Never use a router library** — navigation is state-driven via `dispatch({ type: A.SET_UI, ... })`

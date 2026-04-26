@@ -28,3 +28,7 @@ export async function deleteWebhook(workspaceId, webhookId) {
     method: 'DELETE',
   });
 }
+
+export async function listRepos(workspaceId) {
+  return apiFetch(`/workspaces/${workspaceId}/integrations/repos`);
+}

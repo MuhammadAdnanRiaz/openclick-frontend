@@ -4,6 +4,7 @@ import { VIEWS } from '../data.js';
 import { useApp, A } from '../store/AppContext.jsx';
 import * as spacesApi from '../api/spaces.js';
 import * as workspaceApi from '../api/workspace.js';
+import * as integrationsApi from '../api/integrations.js';
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function WsMenuItem({ icon, label, onClick }) {
@@ -341,6 +342,99 @@ function SideItem({ icon, label, kbd, badge, active, collapsed, pad = 8, onClick
   );
 }
 
+function RepoPickerModal({ workspaceId, project, onLink, onClose }) {
+  const [repos, setRepos] = useState(null);
+  const [q, setQ] = useState('');
+  const [linking, setLinking] = useState(false);
+
+  useEffect(() => {
+    integrationsApi.listRepos(workspaceId)
+      .then(data => setRepos(data.repos ?? []))
+      .catch(() => setRepos([]));
+  }, [workspaceId]);
+
+  const filtered = (repos ?? []).filter(r =>
+    !q || r.fullName.toLowerCase().includes(q.toLowerCase())
+  );
+
+  async function pick(repo) {
+    setLinking(true);
+    try {
+      const updated = await spacesApi.updateProject(workspaceId, project.spaceId ?? '', project.id, {
+        repoProvider: repo.provider,
+        repoFullName: repo.fullName,
+        repoUrl: repo.url,
+      });
+      onLink(updated);
+    } catch {}
+    setLinking(false);
+    onClose();
+  }
+
+  async function unlink() {
+    try {
+      const updated = await spacesApi.updateProject(workspaceId, project.spaceId ?? '', project.id, {
+        repoProvider: null,
+        repoFullName: null,
+        repoUrl: null,
+      });
+      onLink(updated);
+    } catch {}
+    onClose();
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(5,5,10,0.45)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 440, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-lg)', animation: 'oc-scale-in 160ms var(--ease-out)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-14)', fontWeight: 600, color: 'var(--fg)', marginBottom: 2 }}>Link repository</div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--fs-12)', color: 'var(--fg-muted)' }}>Connect <strong>{project.name}</strong> to a GitHub or GitLab repo</div>
+        </div>
+        <div style={{ padding: '10px 12px 8px' }}>
+          <input
+            autoFocus
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search repositories…"
+            className="oc-input"
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div style={{ maxHeight: 280, overflowY: 'auto', padding: '0 6px 6px' }}>
+          {repos === null ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 'var(--fs-13)' }}>Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-muted)', fontSize: 'var(--fs-13)' }}>
+              {repos.length === 0 ? 'No connected integrations. Go to Settings → Integrations to connect GitHub or GitLab.' : 'No repos match.'}
+            </div>
+          ) : filtered.map(r => (
+            <button
+              key={`${r.provider}:${r.fullName}`}
+              onClick={() => !linking && pick(r)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', border: 'none', borderRadius: 'var(--r-md)', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-sans)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Icon name={r.provider === 'github' ? 'github' : 'git-branch'} size={15} style={{ color: 'var(--fg-muted)', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 'var(--fs-13)', fontWeight: 500, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.fullName}</div>
+                <div style={{ fontSize: 10, color: 'var(--fg-subtle)', textTransform: 'capitalize' }}>{r.provider} · {r.private ? 'Private' : 'Public'}</div>
+              </div>
+              {project.repoFullName === r.fullName && <Icon name="check" size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+            </button>
+          ))}
+        </div>
+        {project.repoFullName && (
+          <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 'var(--fs-12)', color: 'var(--fg-muted)' }}>Linked: <strong style={{ color: 'var(--fg)' }}>{project.repoFullName}</strong></span>
+            <button className="oc-btn oc-btn--ghost oc-btn--sm" style={{ color: 'var(--s-blocked-500)' }} onClick={unlink}>Unlink</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SpaceTree({ space, expanded, workspaceId }) {
   const [open, setOpen] = useState(expanded);
   const [hover, setHover] = useState(false);
@@ -355,6 +449,7 @@ function SpaceTree({ space, expanded, workspaceId }) {
   const [pages, setPages] = useState([]);
   const [addingPage, setAddingPage] = useState(false);
   const [newPageName, setNewPageName] = useState('');
+  const [repoPickerProject, setRepoPickerProject] = useState(null);
 
   function confirmAddPage() {
     const name = newPageName.trim();
@@ -372,7 +467,9 @@ function SpaceTree({ space, expanded, workspaceId }) {
     setProjects(ps => [...ps, optimistic]);
     try {
       const created = await spacesApi.createProject(workspaceId, space.id, name);
-      setProjects(ps => ps.map(p => p.id === optimistic.id ? created : p));
+      const withSpaceId = { ...created, spaceId: space.id };
+      setProjects(ps => ps.map(p => p.id === optimistic.id ? withSpaceId : p));
+      setRepoPickerProject(withSpaceId);
     } catch {
       setProjects(ps => ps.filter(p => p.id !== optimistic.id));
     }
@@ -380,6 +477,14 @@ function SpaceTree({ space, expanded, workspaceId }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {repoPickerProject && (
+        <RepoPickerModal
+          workspaceId={workspaceId}
+          project={repoPickerProject}
+          onLink={updated => setProjects(ps => ps.map(p => p.id === updated.id ? { ...p, ...updated, spaceId: space.id } : p))}
+          onClose={() => setRepoPickerProject(null)}
+        />
+      )}
       {/* Space header row */}
       <div
         style={{ display: 'flex', alignItems: 'center', height: 28, gap: 0, position: 'relative' }}
@@ -429,7 +534,15 @@ function SpaceTree({ space, expanded, workspaceId }) {
       {open && (
         <div style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
           {projects.map(p => (
-            <SideSubItem key={p.id ?? p} label={p.name ?? p} icon="hash" active={activeProject === (p.id ?? p)} onClick={() => setActiveProject(p.id ?? p)} />
+            <SideSubItem
+              key={p.id ?? p}
+              label={p.name ?? p}
+              repoFullName={p.repoFullName}
+              repoProvider={p.repoProvider}
+              active={activeProject === (p.id ?? p)}
+              onClick={() => setActiveProject(p.id ?? p)}
+              onLinkRepo={() => setRepoPickerProject({ ...p, spaceId: space.id })}
+            />
           ))}
           {pages.map(pg => (
             <SideSubItem key={pg.id} label={pg.name} icon="file-text" active={false} onClick={() => {}} />
@@ -489,24 +602,46 @@ function AddMenuItem({ icon, label, onClick }) {
   );
 }
 
-function SideSubItem({ label, active, onClick }) {
+function SideSubItem({ label, active, onClick, repoFullName, repoProvider, onLinkRepo }) {
   const [hover, setHover] = useState(false);
   return (
-    <button
-      onClick={onClick}
+    <div
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{
-        height: 26, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 8,
-        borderRadius: 'var(--r-md)',
-        background: active ? 'var(--bg-selected)' : (hover ? 'var(--bg-hover)' : 'transparent'),
-        color: active ? 'var(--accent-text)' : 'var(--fg-muted)',
-        border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)',
-        fontSize: 'var(--fs-12)', fontWeight: active ? 500 : 400, width: '100%', textAlign: 'left',
-      }}
+      style={{ display: 'flex', alignItems: 'center', borderRadius: 'var(--r-md)', background: active ? 'var(--bg-selected)' : (hover ? 'var(--bg-hover)' : 'transparent') }}
     >
-      <Icon name="hash" size={12} strokeWidth={2} />
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-    </button>
+      <button
+        onClick={onClick}
+        style={{
+          flex: 1, height: 26, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 8,
+          background: 'transparent', border: 'none',
+          color: active ? 'var(--accent-text)' : 'var(--fg-muted)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--fs-12)', fontWeight: active ? 500 : 400, textAlign: 'left',
+        }}
+      >
+        <Icon name="hash" size={12} strokeWidth={2} />
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+        {repoFullName && (
+          <Icon
+            name={repoProvider === 'github' ? 'github' : 'git-branch'}
+            size={11}
+            style={{ color: 'var(--accent)', flexShrink: 0 }}
+            title={repoFullName}
+          />
+        )}
+      </button>
+      {hover && onLinkRepo && (
+        <button
+          onClick={e => { e.stopPropagation(); onLinkRepo(); }}
+          title={repoFullName ? `Linked: ${repoFullName}` : 'Link repository'}
+          style={{ width: 20, height: 20, marginRight: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'transparent', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer', color: repoFullName ? 'var(--accent)' : 'var(--fg-subtle)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-press)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <Icon name="link" size={11} />
+        </button>
+      )}
+    </div>
   );
 }
 
