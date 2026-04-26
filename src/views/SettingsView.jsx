@@ -624,7 +624,8 @@ function IntegrationsSection() {
 
   function loadList(wsId) {
     integrationsApi.list(wsId).then(data => {
-      if (data.integrations?.length) setList(data.integrations);
+      const arr = Array.isArray(data) ? data : (data.integrations ?? []);
+      if (arr.length) setList(arr);
     }).catch(() => {});
   }
 
