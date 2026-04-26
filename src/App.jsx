@@ -17,10 +17,11 @@ import { NewTaskModal } from './components/NewTaskModal.jsx';
 import { FilterBar } from './components/FilterBar.jsx';
 import { Icon } from './components/primitives.jsx';
 import { getStoredAuth, clearAuth, setUnauthorizedHandler } from './api/index.js';
+import { setAuthData as storeAuth } from './api/client.js';
 
 // ─── Tweaks panel (theme / density / sidebar — these are still local since ─────
 // they're design-canvas controls, not app state)
-const TWEAK_DEFAULTS = { theme: 'dark', density: 'comfortable', sidebarWidth: 232, sidebarCollapsed: false };
+const TWEAK_DEFAULTS = { theme: 'light', density: 'comfortable', sidebarWidth: 232, sidebarCollapsed: false };
 
 import { useState } from 'react';
 function useTweaks() {
@@ -248,7 +249,7 @@ export default function App() {
 
   // Apply theme tokens before auth screen renders
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
     document.documentElement.setAttribute('data-density', 'comfortable');
   }, []);
 
@@ -259,6 +260,22 @@ export default function App() {
     if (!oauthResult) return;
     localStorage.setItem('oauth_result', oauthResult);
     window.close();
+  }, []);
+
+  // Handle GitHub login callback — detect ?github_auth=<base64_payload>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const githubAuth = params.get('github_auth');
+    if (!githubAuth) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    if (githubAuth === 'error') return;
+    try {
+      const data = JSON.parse(atob(githubAuth));
+      storeAuth(data);
+      setAuthData({ user: data.user, workspaceId: data.workspace?.id ?? null });
+    } catch {
+      // malformed payload — ignore
+    }
   }, []);
 
   function handleAuth(data) {
